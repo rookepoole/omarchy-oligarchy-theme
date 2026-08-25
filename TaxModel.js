@@ -24,6 +24,12 @@ var SCENES = [
     kicker: "ANNUAL GENERAL MEETING",
     title: "MOTION CARRIED 1–0",
     subtitle: "Minority shareholders were represented by a decorative chair."
+  },
+  {
+    id: "pizza-party",
+    kicker: "MANDATORY EMPLOYEE APPRECIATION EVENT",
+    title: "CORPORATE PIZZA PARTY",
+    subtitle: "Record profits were announced. Compensation has been allocated in slices."
   }
 ]
 

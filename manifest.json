@@ -2,14 +2,13 @@
   "schemaVersion": 1,
   "id": "rookepoole.oligarchy-tax-department",
   "name": "Department of Oligarch Revenue",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "author": "Rooke Poole",
   "license": "MIT",
   "description": "A six-desk Oligarch Operating System with treasury collection, live holdings and terminal annual report, executive controls and confirmed session motions, native workspace acquisitions, a bar-integrated focus clock, institutional branding, and animated screensavers.",
-  "kinds": ["bar-widget", "overlay", "service"],
+  "kinds": ["bar-widget", "service"],
   "entryPoints": {
     "barWidget": "TaxDepartment.qml",
-    "overlay": "ExecutiveExit.qml",
     "service": "OligarchyService.qml"
   },
   "barWidget": {

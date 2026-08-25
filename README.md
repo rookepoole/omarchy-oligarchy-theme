@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 4.0 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.3 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -17,7 +17,7 @@ OLIGARCHY 4.0 is not a wallpaper with matching colors. It turns the desktop into
 | Holdings desk | Machine as family-office balance sheet | Live telemetry and a floating-terminal annual report |
 | Privileges desk | System controls renamed for executives | Lock, DND, stay-awake, fullscreen screenshot |
 | Executive Exit Committee | Native session/power overlay with a quorum of one | Lock, suspend, logout, reboot, shutdown with confirmations |
-| Idle Capital desk | Four-scene native screensaver manager | Preview, opt-in default, restore, system branding |
+| Idle Capital desk | Five-scene native screensaver manager | Preview, opt-in default, restore, system branding |
 | Acquisitions desk | Live Hyprland workspaces as portfolio companies | Window counts, current-workspace state, direct switching |
 | Compound desk | Focus/recess clock with hostile-takeover presets | Persistent countdown, progress, sessions, completion notices |
 | Screensaver | Animated wealth extraction in Quickshell | Multi-monitor idle display, activity dismissal, burn-in drift |
@@ -81,7 +81,7 @@ This is not a fake workspace mockup. It reads Omarchy's native Hyprland workspac
 
 Start a 25-minute Hostile Takeover, a 50-minute Mega Merger, or a five-minute Board Recess. The timer keeps running when the panel closes, replaces `TAX·nn` with a live `ROI·MM:SS` bar readout, records completed performance periods, vests a recess after focus maturity, and sends a themed completion notice.
 
-## Four native animated screensavers
+## Five native animated screensavers
 
 These are live QML scenes, not background images. They render once per output, drift to reduce burn-in, rotate every 15 seconds, honor Omarchy's configured idle time, respect idle inhibitors, and dismiss on activity.
 
@@ -111,6 +111,10 @@ Nine disclosure vehicles orbit one beneficial owner who remains tastefully redac
 
 Minority shareholders are represented by a decorative chair. The motion still carries 1–0.
 
+### Mandatory Corporate Pizza Party
+
+Record profits become a $14.99 morale budget: labor receives one animated slice, leadership receives seven, merit increases remain at 0.0%, and the HR attendance counter steadily approaches compulsory enthusiasm.
+
 ## Pay your taxes to the oligarch
 
 **Network:** Base  
@@ -139,6 +143,7 @@ Add the native operating system layer:
 
 ```bash
 omarchy plugin add https://github.com/rookepoole/omarchy-oligarchy-theme.git --enable
+bash ~/.config/omarchy/themes/oligarchy/keybinding.sh install
 omarchy-restart-shell
 ```
 
@@ -159,6 +164,18 @@ omarchy-restart-shell
 If it stops because the plugin directory contains local work or is not a Git checkout, it leaves that directory untouched and reports the exact path.
 
 The installer rescans and verifies discovery before it reports success, but the running desktop can still retain the previous plugin generation. Restart the shell after an install or update. If that system command does not replace the visible generation, reboot once; that fallback has been confirmed on a real Omarchy installation. The installer deliberately does not restart or reboot the active session for you.
+
+The installer also adds one collision-checked, managed Hyprland binding:
+
+```text
+Super + Shift + T  →  Tax Department
+```
+
+It uses Omarchy's stable shell-level plugin route, so the panel opens on the focused monitor. If that chord is already assigned, the installer leaves the existing action untouched and reports the conflict. Remove only OLIGARCHY's managed block at any time with:
+
+```bash
+bash ~/.config/omarchy/themes/oligarchy/keybinding.sh remove
+```
 
 ### Upgrade from 2.x
 
@@ -197,9 +214,10 @@ omarchy-shell oligarchy-screensaver status
 | Left-click `TAX·nn` | Open or close the operating panel |
 | Right-click `TAX·nn` | Copy the exact Base treasury address |
 | Middle-click `TAX·nn` | Issue a fresh assessment |
+| `Super + Shift + T` | Open or close the Tax Department globally |
 | `1`–`6` | Select Revenue, Holdings, Privileges, Idle Capital, Acquisitions, or Compound |
 | Tab / Shift+Tab | Move between desks |
-| Arrow keys / `h j k l` | Move between actions |
+| Arrow keys | Move between actions; letters remain available to desk shortcuts |
 | Enter / Space | Run the selected action |
 | `c o r` | Copy, open ledger, reassess on Revenue |
 | `l d a s b` | Lock, DND, stay awake, screenshot, Exit Committee on Privileges |
@@ -229,6 +247,7 @@ The separately approved plugin:
 Remove the interactive layer without touching the theme:
 
 ```bash
+bash ~/.config/omarchy/themes/oligarchy/keybinding.sh remove
 omarchy plugin remove rookepoole.oligarchy-tax-department
 ```
 
@@ -245,12 +264,13 @@ The active `backgrounds/` directory contains one deterministic wallpaper, `+tax-
 ```bash
 python validate_theme.py
 node tests/model.test.js
+bash tests/keybinding.test.sh
 bash tests/install_plugin.test.sh
 bash tests/annual_report.test.sh
 omarchy plugin validate .
 ```
 
-The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, six-desk interaction coverage, the Exit Committee's fixed-command and safe-confirmation boundary, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads all three plugin entry points under current Quickshell/Omarchy UI modules, renders every desk, exit state, and screensaver scene under Wayland, proves confirmation blocks unwanted dispatch, exercises workspace dispatch, focus-cycle maturity, and reversible system state, and decodes the QR from the rendered panel.
+The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, keyboard routing, reversible collision-safe global binding, six-desk interaction coverage, the Exit Committee's fixed-command and safe-confirmation boundary, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points and the service-owned Exit Committee under current Quickshell/Omarchy UI modules, renders every desk, exit state, and screensaver scene under Wayland, proves confirmation blocks unwanted dispatch, exercises workspace dispatch, focus-cycle maturity, and reversible system state, and decodes the QR from the rendered panel.
 
 ## Palette
 

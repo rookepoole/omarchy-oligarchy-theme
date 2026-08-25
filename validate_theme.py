@@ -83,16 +83,14 @@ def validate_plugin() -> dict[str, object]:
     assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", manifest["id"])
     assert ".." not in manifest["id"] and not manifest["id"].startswith("omarchy.")
     assert manifest["version"] == (ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert manifest["kinds"] == ["bar-widget", "overlay", "service"]
+    assert manifest["kinds"] == ["bar-widget", "service"]
     entry = manifest["entryPoints"]["barWidget"]
-    overlay_entry = manifest["entryPoints"]["overlay"]
     service_entry = manifest["entryPoints"]["service"]
     assert entry == "TaxDepartment.qml"
-    assert overlay_entry == "ExecutiveExit.qml"
     assert service_entry == "OligarchyService.qml"
     assert (ROOT / entry).is_file()
-    assert (ROOT / overlay_entry).is_file()
     assert (ROOT / service_entry).is_file()
+    assert (ROOT / "ExecutiveExit.qml").is_file()
     assert manifest["barWidget"]["allowMultiple"] is False
     assert manifest["barWidget"]["defaultSection"] in {"left", "center", "right"}
 
@@ -100,28 +98,38 @@ def validate_plugin() -> dict[str, object]:
     assert not symlinks, f"plugin folder may not contain symlinks: {symlinks}"
 
     qml = (ROOT / entry).read_text(encoding="utf-8")
-    overlay_qml = (ROOT / overlay_entry).read_text(encoding="utf-8")
+    overlay_qml = (ROOT / "ExecutiveExit.qml").read_text(encoding="utf-8")
     service_qml = (ROOT / service_entry).read_text(encoding="utf-8")
+    key_catcher_qml = (ROOT / "OligarchyKeyCatcher.qml").read_text(encoding="utf-8")
     saver_qml = (ROOT / "OligarchyScreensaver.qml").read_text(encoding="utf-8")
     model = (ROOT / "TaxModel.js").read_text(encoding="utf-8")
     assert "ShellRoot" not in qml, "plugin entry point must be an Item-derived component"
-    assert "ShellRoot" not in overlay_qml, "overlay entry point must be an Item-derived component"
+    assert "ShellRoot" not in overlay_qml, "service-owned overlay must be an Item-derived component"
     assert "ShellRoot" not in service_qml, "service entry point must be an Item-derived component"
     assert re.search(r"\bPanel\s*\{", qml), "expected native Omarchy Panel root"
     assert re.search(r"\bItem\s*\{", service_qml), "expected Item-derived service root"
     assert "IdleMonitor" in service_qml, "expected native idle integration"
     assert "Variants" in service_qml and "PanelWindow" in service_qml, "expected one screensaver surface per output"
     assert 'target: "oligarchy-screensaver"' in service_qml, "expected screensaver IPC target"
+    assert 'target: "oligarchy-executive-exit"' in service_qml, "expected service-owned exit IPC target"
+    assert re.search(r"\bExecutiveExit\s*\{", service_qml), "service must own the exit overlay"
+    assert "function request(actionId: string)" in service_qml, "exit IPC must preserve the confirmation-request boundary"
     assert "function previewScene" in service_qml, "expected direct scene-selection IPC"
     assert "CONTROLLING INTEREST ACQUIRED" in service_qml, "expected one-time onboarding notice"
-    assert saver_qml.count("// Scene ") == 4, "expected four distinct animated screensaver scenes"
+    assert saver_qml.count("// Scene ") == 5, "expected five distinct animated screensaver scenes"
+    assert "CORPORATE PIZZA PARTY" in model and "MANDATORY ATTENDANCE" in saver_qml, "expected native corporate pizza party scene"
     assert "TAX·" in qml, "expected live assessment in the bar"
     assert "ROI·" in qml and "focusRunning" in qml, "expected bar-integrated focus clock"
     assert "Quickshell.Hyprland" in qml, "expected native Hyprland workspace integration"
     assert "PORTFOLIOS" in model and "PORTFOLIO COMPANIES" in qml, "expected workspace acquisition desk"
     assert "COMPOUND INTEREST" in qml and "formatFocusTime" in model, "expected focus desk"
     assert "openAnnualReport" in qml and "omarchy-launch-floating-terminal-with-presentation" in qml, "expected terminal annual report launcher"
-    assert "conveneExitCommittee" in qml and '"shell", "summon", moduleName' in qml, "expected native exit-overlay route"
+    assert "conveneExitCommittee" in qml and '"oligarchy-executive-exit", "open"' in qml, "expected stable service-owned exit route"
+    assert "OligarchyKeyCatcher" in qml, "Tax Department must use its mnemonic-safe keyboard router"
+    for reserved in ('event.text === "h"', 'event.text === "j"', 'event.text === "k"', 'event.text === "l"', 'event.text === "x"'):
+        assert reserved not in key_catcher_qml, f"desk mnemonic is still intercepted: {reserved}"
+    assert key_catcher_qml.count("moveRequested(") == 5, "only four arrow branches plus the signal declaration should navigate"
+    assert "event.accepted = root.routeKey(event.key, event.text, event.modifiers)" in key_catcher_qml, "production key events must use the verified mnemonic router"
     assert "PanelWindow" in overlay_qml and "WlrLayer.Overlay" in overlay_qml, "expected native fullscreen exit overlay"
     assert "ConfirmDialog" in overlay_qml and "selectedIndex = 0" in overlay_qml, "disruptive session actions must default to safe confirmation"
     for command in (
@@ -155,8 +163,16 @@ def validate_installer() -> None:
     assert 'omarchy plugin add "$REPO_URL" --enable --yes' in installer
     assert 'omarchy plugin enable "$PLUGIN_ID" --section right' in installer
     assert "rescanPlugins" in installer, "installer must rescan shell plugins"
+    assert 'bash "$SCRIPT_DIR/keybinding.sh" install' in installer, "installer must provision the global Tax Department binding"
     for destructive in ("reset --hard", "plugin remove", "rm -rf"):
         assert destructive not in installer, f"installer must not use destructive recovery: {destructive}"
+
+    keybinding = (ROOT / "keybinding.sh").read_text(encoding="utf-8")
+    assert keybinding.startswith("#!/bin/bash\n"), "keybinding manager must have a Bash shebang"
+    assert 'CHORD="SUPER + SHIFT + T"' in keybinding
+    assert 'omarchy-shell shell toggle rookepoole.oligarchy-tax-department' in keybinding
+    assert "hl.unbind" not in keybinding, "keybinding manager must never unbind an existing action"
+    assert "configerrors" in keybinding and "prior bindings file was restored" in keybinding
 
 
 def validate_annual_report() -> None:

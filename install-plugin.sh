@@ -9,6 +9,7 @@ set -euo pipefail
 readonly PLUGIN_ID="rookepoole.oligarchy-tax-department"
 readonly REPO_URL="https://github.com/rookepoole/omarchy-oligarchy-theme.git"
 readonly PLUGIN_DIR="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
+readonly SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 fail() {
   printf 'OLIGARCHY installer: %s\n' "$*" >&2
@@ -60,7 +61,19 @@ plugins=$(omarchy plugin list --json)
 jq -e --arg id "$PLUGIN_ID" 'any(.[]; .id == $id and .enabled == true)' \
   <<<"$plugins" >/dev/null 2>&1 || fail "plugin was discovered but did not remain enabled"
 
+binding_installed=no
+if bash "$SCRIPT_DIR/keybinding.sh" install; then
+  binding_installed=yes
+else
+  printf 'OLIGARCHY installer: plugin installed, but the global keybind was skipped to preserve an existing assignment.\n' >&2
+fi
+
 printf 'OLIGARCHY %s is installed, discovered, and enabled.\n' "$version"
+if [[ $binding_installed == yes ]]; then
+  printf 'Open the Tax Department globally with Super+Shift+T.\n'
+else
+  printf 'Open TAX·nn from the bar, then resolve the reported key conflict before retrying keybinding.sh.\n'
+fi
 printf 'Restart the Omarchy shell to load this generation: omarchy-restart-shell\n'
 printf 'If the old generation remains after that, reboot once.\n'
-printf 'Then open the Tax Department from TAX·nn in the bar.\n'
+printf 'The plugin opener is: omarchy-shell shell toggle %s "{}"\n' "$PLUGIN_ID"

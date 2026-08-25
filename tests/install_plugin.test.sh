@@ -35,8 +35,11 @@ case "$*" in
     printf 'add\n' >>"$case_root/log"
     plugin_dir="$HOME/.config/omarchy/plugins/rookepoole.oligarchy-tax-department"
     mkdir -p "$plugin_dir/.git"
-    printf '{"version":"4.2.0"}\n' >"$plugin_dir/manifest.json"
+    printf '{"version":"4.3.0"}\n' >"$plugin_dir/manifest.json"
     printf 'enabled\n' >"$case_root/state"
+    ;;
+  "menu keybindings --print")
+    printf 'SUPER + CTRL + T                    → Activity\n'
     ;;
   "plugin enable rookepoole.oligarchy-tax-department --section right")
     printf 'enable\n' >>"$case_root/log"
@@ -87,6 +90,9 @@ grep -qx 'add' "$absent/log"
 grep -qx 'enabled' "$absent/state"
 grep -F 'omarchy-restart-shell' <<<"$absent_output" >/dev/null
 grep -F 'reboot once' <<<"$absent_output" >/dev/null
+grep -F 'Super+Shift+T' <<<"$absent_output" >/dev/null
+grep -Fqx 'o.bind("SUPER + SHIFT + T", "Tax Department", "omarchy-shell shell toggle rookepoole.oligarchy-tax-department '\''{}'\''")' \
+  "$absent/home/.config/hypr/bindings.lua"
 
 present=$(new_case present)
 plugin_dir="$present/home/.config/omarchy/plugins/$PLUGIN_ID"
@@ -115,4 +121,13 @@ if run_installer "$old_api" >/dev/null 2>&1; then
 fi
 [[ ! -s $old_api/log ]]
 
-echo "PASS - installer handles add, update, enable, lifecycle guidance, preservation, and old-API refusal"
+binding_conflict=$(new_case binding-conflict)
+mkdir -p "$binding_conflict/home/.config/hypr"
+printf '%s\n' 'o.bind("SUPER + SHIFT + T", "Existing action", "true")' \
+  >"$binding_conflict/home/.config/hypr/bindings.lua"
+conflict_output=$(run_installer "$binding_conflict" 2>&1)
+grep -F 'global keybind was skipped' <<<"$conflict_output" >/dev/null
+grep -Fqx 'o.bind("SUPER + SHIFT + T", "Existing action", "true")' \
+  "$binding_conflict/home/.config/hypr/bindings.lua"
+
+echo "PASS - installer handles add, update, enable, lifecycle guidance, preservation, old-API refusal, and keybind conflicts"

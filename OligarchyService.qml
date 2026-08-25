@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
+import "TaxModel.js" as TaxModel
 
 Item {
   id: root
@@ -30,7 +31,7 @@ Item {
     manualPreview = lastReason !== "idle"
     var numericScene = Number(requestedScene)
     if (!isFinite(numericScene)) numericScene = Math.floor(Date.now() / 1000)
-    sceneIndex = ((Math.floor(numericScene) % 4) + 4) % 4
+    sceneIndex = ((Math.floor(numericScene) % TaxModel.SCENES.length) + TaxModel.SCENES.length) % TaxModel.SCENES.length
     sceneSerial += 1
     openedAtMs = Date.now()
     active = true
@@ -52,7 +53,7 @@ Item {
   }
 
   function nextScene() {
-    sceneIndex = (sceneIndex + 1) % 4
+    sceneIndex = (sceneIndex + 1) % TaxModel.SCENES.length
     sceneSerial += 1
     return String(sceneIndex)
   }
@@ -192,6 +193,30 @@ Item {
     function brand(): string { return root.installBranding() }
     function restoreBranding(): string { return root.restoreBranding() }
     function status(): string { return root.statusJson() }
+  }
+
+  IpcHandler {
+    target: "oligarchy-executive-exit"
+
+    function open(payloadJson: string): string {
+      exitCommittee.open(payloadJson)
+      return "ok"
+    }
+    function close(): string { exitCommittee.close(); return "ok" }
+    function toggle(): string { exitCommittee.toggle(); return "ok" }
+    function request(actionId: string): string {
+      var index = exitCommittee.actionIndexById(actionId)
+      if (String(exitCommittee.actions[index].id) !== String(actionId)) return "unknown-action"
+      exitCommittee.requestAction(index)
+      return "ok"
+    }
+    function status(): string { return exitCommittee.statusJson() }
+  }
+
+  ExecutiveExit {
+    id: exitCommittee
+    shell: root.shell
+    manifest: root.manifest
   }
 
   Variants {

@@ -53,8 +53,6 @@ Item {
 
   function dismiss() {
     close()
-    if (shell && typeof shell.hide === "function")
-      shell.hide((manifest && manifest.id) || "rookepoole.oligarchy-tax-department")
   }
 
   function toggle() {

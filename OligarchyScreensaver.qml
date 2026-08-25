@@ -16,6 +16,7 @@ Item {
   property real driftY: 7
   property real orbitAngle: 0
   property real marketPhase: 0
+  property int pizzaAttendance: 4
 
   NumberAnimation on driftX {
     from: -12; to: 12; duration: 19000
@@ -34,6 +35,12 @@ Item {
     onRunningChanged: marketChart.requestPaint()
   }
   onMarketPhaseChanged: marketChart.requestPaint()
+  SequentialAnimation on pizzaAttendance {
+    loops: Animation.Infinite
+    NumberAnimation { from: 4; to: 99; duration: 11000; easing.type: Easing.InOutQuad }
+    PauseAnimation { duration: 1800 }
+    NumberAnimation { from: 99; to: 4; duration: 700; easing.type: Easing.InQuad }
+  }
 
   Rectangle {
     anchors.fill: parent
@@ -124,7 +131,7 @@ Item {
       Text {
         width: parent.width
         text: root.scene.title
-        color: root.sceneIndex === 3 ? root.gold : root.green
+        color: root.sceneIndex === 3 ? root.gold : (root.sceneIndex === 4 ? root.red : root.green)
         font.family: Style.font.family
         font.pixelSize: Math.max(32, Math.min(root.width, root.height) * 0.072)
         font.bold: true
@@ -389,6 +396,154 @@ Item {
                 Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.48; text: modelData[0]; color: root.ivory; font.family: Style.font.family; font.pixelSize: Math.max(12, root.height * 0.017); font.bold: true; elide: Text.ElideRight }
                 Rectangle { anchors.left: parent.left; anchors.leftMargin: parent.width * 0.50; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.28; height: 12; color: "#182019"; Rectangle { width: parent.width * modelData[2]; height: parent.height; color: index === 1 || index === 2 ? root.red : root.green } }
                 Text { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: parent.width * 0.18; text: modelData[1]; color: index === 1 || index === 2 ? root.red : root.gold; font.family: Style.font.family; font.pixelSize: Math.max(11, root.height * 0.015); font.bold: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
+              }
+            }
+          }
+        }
+      }
+
+      // Scene 5: compensation denominated in pizza while profits stay liquid.
+      Item {
+        anchors.fill: parent
+        visible: root.sceneIndex === 4
+
+        Row {
+          anchors.centerIn: parent
+          width: Math.min(parent.width * 0.94, 1260)
+          height: parent.height * 0.90
+          spacing: Math.max(32, parent.width * 0.055)
+
+          Item {
+            width: parent.height
+            height: parent.height
+
+            Rectangle {
+              id: pizza
+              anchors.centerIn: parent
+              width: Math.min(parent.width, parent.height) * 0.84
+              height: width
+              radius: width / 2
+              color: "#D4A846"
+              border.color: "#9A5B2B"
+              border.width: Math.max(10, width * 0.045)
+
+              Repeater {
+                model: 8
+                Rectangle {
+                  required property int index
+                  x: pizza.width / 2 - width / 2
+                  y: pizza.border.width
+                  width: 2
+                  height: pizza.width / 2 - pizza.border.width
+                  color: "#8A552D"
+                  opacity: 0.72
+                  transformOrigin: Item.Bottom
+                  rotation: index * 45
+                }
+              }
+
+              Repeater {
+                model: 18
+                Rectangle {
+                  required property int index
+                  readonly property real angle: (index * 137.5) * Math.PI / 180
+                  readonly property real distance: pizza.width * (0.11 + (index % 4) * 0.072)
+                  x: pizza.width / 2 + Math.cos(angle) * distance - width / 2
+                  y: pizza.height / 2 + Math.sin(angle) * distance - height / 2
+                  width: Math.max(10, pizza.width * 0.055)
+                  height: width
+                  radius: width / 2
+                  color: index % 5 === 0 ? "#557A3D" : "#B74338"
+                  border.color: "#722B28"
+                  border.width: 1
+                }
+              }
+
+              Rectangle {
+                anchors.centerIn: parent
+                width: pizza.width * 0.18
+                height: width
+                radius: width / 2
+                color: "#080B09"
+                border.color: root.gold
+                border.width: 2
+                Text {
+                  anchors.centerIn: parent
+                  text: "Q4"
+                  color: root.gold
+                  font.family: Style.font.family
+                  font.pixelSize: Math.max(16, pizza.width * 0.065)
+                  font.bold: true
+                }
+              }
+            }
+
+            Rectangle {
+              id: laborSlice
+              width: pizza.width * 0.31
+              height: pizza.width * 0.13
+              x: pizza.x + pizza.width * 0.70
+              y: pizza.y + pizza.height * 0.06
+              rotation: -22
+              color: "#D4A846"
+              border.color: root.red
+              border.width: 2
+              Text {
+                anchors.centerIn: parent
+                text: "LABOR // 1 SLICE"
+                color: "#080B09"
+                font.family: Style.font.family
+                font.pixelSize: Math.max(9, laborSlice.height * 0.20)
+                font.bold: true
+              }
+
+              SequentialAnimation on x {
+                loops: Animation.Infinite
+                NumberAnimation { from: pizza.x + pizza.width * 0.62; to: pizza.x + pizza.width * 0.78; duration: 2200; easing.type: Easing.InOutSine }
+                NumberAnimation { from: pizza.x + pizza.width * 0.78; to: pizza.x + pizza.width * 0.62; duration: 2200; easing.type: Easing.InOutSine }
+              }
+            }
+          }
+
+          Column {
+            width: parent.width - parent.height - parent.spacing
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Math.max(10, parent.height * 0.028)
+
+            Repeater {
+              model: [
+                ["RECORD PROFITS", "+38.7%"],
+                ["MERIT INCREASE", "0.0%"],
+                ["MORALE BUDGET", "$14.99"],
+                ["EXECUTIVE SLICES", "7 OF 8"]
+              ]
+              Rectangle {
+                required property var modelData
+                required property int index
+                width: parent.width
+                height: Math.max(52, stage.height * 0.11)
+                color: index === 1 ? "#150D0C" : "#0B100D"
+                border.color: index === 1 ? root.red : "#30442B"
+                border.width: 1
+                Row {
+                  anchors.fill: parent
+                  anchors.margins: 12
+                  Text { width: parent.width * 0.62; anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; color: root.ivory; font.family: Style.font.family; font.pixelSize: Math.max(11, root.height * 0.016); font.bold: true }
+                  Text { width: parent.width * 0.38; anchors.verticalCenter: parent.verticalCenter; text: modelData[1]; color: index === 1 ? root.red : root.gold; font.family: Style.font.family; font.pixelSize: Math.max(13, root.height * 0.019); font.bold: true; horizontalAlignment: Text.AlignRight }
+                }
+              }
+            }
+
+            Rectangle {
+              width: parent.width
+              height: Math.max(72, stage.height * 0.15)
+              color: "#080B09"
+              border.color: root.green
+              border.width: 2
+              Column {
+                anchors.centerIn: parent
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: "MANDATORY ATTENDANCE"; color: root.ivory; font.family: Style.font.family; font.pixelSize: Math.max(11, root.height * 0.015); font.bold: true; font.letterSpacing: 1 }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.pizzaAttendance + "%  //  HR IS WATCHING"; color: root.green; font.family: Style.font.family; font.pixelSize: Math.max(18, root.height * 0.028); font.bold: true }
               }
             }
           }

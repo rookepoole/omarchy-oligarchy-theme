@@ -19,6 +19,7 @@ Panel {
   readonly property var pageNames: ["REVENUE", "HOLDINGS", "PRIVILEGES", "IDLE CAPITAL", "ACQUISITIONS", "COMPOUND"]
   readonly property var pageActionCounts: [3, 2, 5, 4, 5, 5]
   readonly property var pageComponents: [revenuePage, holdingsPage, privilegesPage, screensaverPage, acquisitionsPage, compoundPage]
+  property alias keyboardRouter: keyCatcher
 
   property int serial: 1040
   property var currentAssessment: TaxModel.assessment(serial)
@@ -81,7 +82,7 @@ Panel {
   function conveneExitCommittee() {
     receipt = "EXECUTIVE EXIT COMMITTEE // CONVENED"
     root.close()
-    Quickshell.execDetached(["omarchy-shell", "shell", "summon", moduleName, "{}"])
+    Quickshell.execDetached(["omarchy-shell", "oligarchy-executive-exit", "open", "{}"])
   }
 
   function screensaverCall(method, nextReceipt, argument) {
@@ -339,7 +340,7 @@ Panel {
     contentWidth: panel.fittedContentWidth(Style.space(620))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
-    PanelKeyCatcher {
+    OligarchyKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
       onMoveRequested: function(dx, dy) { root.moveAction(dx !== 0 ? dx : dy) }
@@ -592,7 +593,7 @@ Panel {
       width: pageLoader.width
       spacing: Style.space(9)
       Text { width: parent.width; text: "PRIVATE IDLE CAPITAL"; color: "#D4B35A"; font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; font.bold: true; font.letterSpacing: 1 }
-      Text { width: parent.width; text: "Four native animated scenes rotate every 15 seconds and dismiss on activity. Default integration is opt-in and reversible."; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; wrapMode: Text.WordWrap }
+      Text { width: parent.width; text: "Five native animated scenes rotate every 15 seconds and dismiss on activity. Default integration is opt-in and reversible."; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; wrapMode: Text.WordWrap }
       Row {
         width: parent.width; spacing: Style.space(6)
         Repeater {
@@ -600,7 +601,7 @@ Panel {
           NoticeCell {
             required property var modelData
             required property int index
-            width: (parent.width - parent.spacing * 3) / 4
+            width: (parent.width - parent.spacing * (TaxModel.SCENES.length - 1)) / TaxModel.SCENES.length
             title: "0" + (index + 1)
             detail: modelData.id.replace(/-/g, " ").toUpperCase()
             interactive: true
