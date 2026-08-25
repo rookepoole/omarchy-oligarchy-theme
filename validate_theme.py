@@ -243,8 +243,19 @@ def validate_images() -> list[Path]:
         with Image.open(ROOT / "assets" / name) as image:
             assert image.size == size, f"unexpected {name} size: {image.size}"
             if name == "operating-system-tour.gif":
-                assert getattr(image, "n_frames", 0) >= 60, "operating-system tour is not meaningfully animated"
+                assert getattr(image, "n_frames", 0) >= 6, "operating-system tour must show all six desks"
                 assert image.info.get("loop") == 0, "operating-system tour must loop"
+    showcase_sizes = {
+        "apps-menu-launchers.png": (1280, 720),
+        "screensaver-pizza-party.png": (1280, 720),
+        "screensaver-suite.gif": (1280, 720),
+    }
+    for name, size in showcase_sizes.items():
+        with Image.open(ROOT / "assets" / name) as image:
+            assert image.size == size, f"unexpected {name} size: {image.size}"
+            if name == "screensaver-suite.gif":
+                assert getattr(image, "n_frames", 0) >= 5, "screensaver tour must show all five scenes"
+                assert image.info.get("loop") == 0, "screensaver tour must loop"
     return backgrounds
 
 

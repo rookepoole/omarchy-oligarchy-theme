@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 4.4 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.4.1 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -86,6 +86,8 @@ Start a 25-minute Hostile Takeover, a 50-minute Mega Merger, or a five-minute Bo
 
 Press `Super + Alt + Space` and search for **Department of Oligarch Revenue**, **Executive Exit Committee**, or **Mandatory Corporate Pizza Party**. These are real freedesktop launcher entries installed under unique OLIGARCHY filenames, so they appear in Omarchy's existing app library instead of creating a parallel launcher. Installation refuses an unrelated file collision; removal only touches entries that still carry OLIGARCHY's ownership marker.
 
+![Three OLIGARCHY entries in Omarchy's real Apps menu](assets/apps-menu-launchers.png)
+
 ## Five native animated screensavers
 
 These are live QML scenes, not background images. They render once per output, drift to reduce burn-in, rotate every 15 seconds, honor Omarchy's configured idle time, respect idle inhibitors, and dismiss on activity.
@@ -117,6 +119,8 @@ Nine disclosure vehicles orbit one beneficial owner who remains tastefully redac
 Minority shareholders are represented by a decorative chair. The motion still carries 1–0.
 
 ### Mandatory Corporate Pizza Party
+
+![Mandatory Corporate Pizza Party screensaver](assets/screensaver-pizza-party.png)
 
 Record profits become a $14.99 morale budget: labor receives one animated slice, leadership receives seven, merit increases remain at 0.0%, and the HR attendance counter steadily approaches compulsory enthusiasm.
 

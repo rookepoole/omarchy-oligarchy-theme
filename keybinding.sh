@@ -74,14 +74,27 @@ normalized_chord() {
 }
 
 configured_chord_claimed() {
+  [[ $(configured_chord_claim_count) -gt 0 ]]
+}
+
+configured_chord_claim_count() {
   local line raw
-  [[ -f $BINDINGS_FILE ]] || return 1
+  local count=0
+  [[ -f $BINDINGS_FILE ]] || { printf '0\n'; return; }
   while IFS= read -r line; do
     raw=$(sed -nE 's/^[[:space:]]*(o|hl)\.bind\("([^"]+)".*/\2/p' <<<"$line")
     [[ -n $raw ]] || continue
-    [[ $(normalized_chord "$raw") == SHIFTSUPERT ]] && return 0
+    [[ $(normalized_chord "$raw") == SHIFTSUPERT ]] && count=$((count + 1))
   done <"$BINDINGS_FILE"
-  return 1
+  printf '%s\n' "$count"
+}
+
+known_orphan_binding_count() {
+  local count=0
+  [[ -f $BINDINGS_FILE ]] || { printf '0\n'; return; }
+  count=$((count + $(grep -Fxc -- "$BINDING_LINE" "$BINDINGS_FILE" || true)))
+  count=$((count + $(grep -Fxc -- "$LEGACY_BINDING_LINE" "$BINDINGS_FILE" || true)))
+  printf '%s\n' "$count"
 }
 
 live_session_available() {
@@ -208,8 +221,27 @@ write_current_managed_block() {
   mv -- "$temporary" "$BINDINGS_FILE"
 }
 
+adopt_known_orphan_binding() {
+  local temporary
+  temporary=$(mktemp "${BINDINGS_FILE}.oligarchy.XXXXXX")
+  awk -v current="$BINDING_LINE" -v legacy="$LEGACY_BINDING_LINE" \
+      -v start="$START_MARKER" -v finish="$END_MARKER" '
+    $0 == current || $0 == legacy {
+      replaced++
+      print start
+      print current
+      print finish
+      next
+    }
+    { print }
+    END { if (replaced != 1) exit 2 }
+  ' "$BINDINGS_FILE" >"$temporary"
+  chmod --reference="$BINDINGS_FILE" "$temporary" 2>/dev/null || true
+  mv -- "$temporary" "$BINDINGS_FILE"
+}
+
 install_binding() {
-  local starts ends backup existed=no
+  local starts ends backup existed=no orphan_count chord_count
   starts=$(marker_count "$START_MARKER")
   ends=$(marker_count "$END_MARKER")
 
@@ -224,6 +256,20 @@ install_binding() {
       write_current_managed_block
       printf 'OLIGARCHY keybind: migrated the owned binding to the current command.\n'
     fi
+    activate_and_verify_live_binding "$backup" "$existed"
+    return 0
+  fi
+
+  orphan_count=$(known_orphan_binding_count)
+  if (( orphan_count > 0 )); then
+    chord_count=$(configured_chord_claim_count)
+    (( orphan_count == 1 && chord_count == 1 )) ||
+      fail "$CHORD has multiple source claims; no line was adopted or overwritten"
+    preflight_live_config
+    existed=yes
+    backup=$(backup_bindings)
+    adopt_known_orphan_binding
+    printf 'OLIGARCHY keybind: adopted the earlier unmarked OLIGARCHY binding into the managed block.\n'
     activate_and_verify_live_binding "$backup" "$existed"
     return 0
   fi
@@ -276,8 +322,22 @@ remove_binding() {
 }
 
 status_binding() {
+  local starts ends orphan_count
+  starts=$(marker_count "$START_MARKER")
+  ends=$(marker_count "$END_MARKER")
+  if [[ $starts == 0 && $ends == 0 ]]; then
+    orphan_count=$(known_orphan_binding_count)
+    if (( orphan_count == 1 )); then
+      printf 'persistent: unmarked OLIGARCHY binding (run repair to adopt it safely)\n'
+    elif (( orphan_count > 1 )); then
+      printf 'persistent: ambiguous OLIGARCHY duplicates (manual review required)\n'
+    else
+      printf 'persistent: missing (run repair to install it)\n'
+    fi
+    return 1
+  fi
   if ! managed_block_shape_is_valid; then
-    printf 'persistent: missing or invalid\n'
+    printf 'persistent: invalid managed block | start-markers=%s end-markers=%s\n' "$starts" "$ends"
     return 1
   fi
   if ! managed_block_is_current; then

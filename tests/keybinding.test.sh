@@ -64,6 +64,11 @@ run_live() {
 
 clean=$(make_case clean)
 printf '%s\n' '-- personal binding file' >"$clean/home/.config/hypr/bindings.lua"
+if HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" status >"$clean/status" 2>&1; then
+  echo "expected a never-installed binding to report missing" >&2
+  exit 1
+fi
+grep -F 'persistent: missing (run repair to install it)' "$clean/status" >/dev/null
 HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" install >/dev/null
 grep -Fqx "$CURRENT" "$clean/home/.config/hypr/bindings.lua"
 HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" install >/dev/null
@@ -72,6 +77,31 @@ HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" status | grep -F 'per
 HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" remove >/dev/null
 grep -Fqx -- '-- personal binding file' "$clean/home/.config/hypr/bindings.lua"
 ! grep -Fq 'Tax Department' "$clean/home/.config/hypr/bindings.lua"
+
+orphan=$(make_case orphan)
+printf '%s\n%s\n%s\n' '-- before' "$LEGACY" '-- after' >"$orphan/home/.config/hypr/bindings.lua"
+if HOME="$orphan/home" PATH="$orphan/bin:$PATH" bash "$MANAGER" status >"$orphan/status" 2>&1; then
+  echo "expected an unmarked binding to require adoption" >&2
+  exit 1
+fi
+grep -F 'persistent: unmarked OLIGARCHY binding' "$orphan/status" >/dev/null
+HOME="$orphan/home" PATH="$orphan/bin:$PATH" bash "$MANAGER" repair >/dev/null
+grep -Fqx -- '-- before' "$orphan/home/.config/hypr/bindings.lua"
+grep -Fqx -- '-- after' "$orphan/home/.config/hypr/bindings.lua"
+grep -Fqx "$CURRENT" "$orphan/home/.config/hypr/bindings.lua"
+[[ $(grep -Fc 'OLIGARCHY TAX DEPARTMENT KEYBIND' "$orphan/home/.config/hypr/bindings.lua") == 2 ]]
+! grep -Fq "'{}'" "$orphan/home/.config/hypr/bindings.lua"
+
+orphan_collision=$(make_case orphan-collision)
+printf '%s\n%s\n' "$LEGACY" 'o.bind("SHIFT + SUPER + T", "Existing action", "true")' \
+  >"$orphan_collision/home/.config/hypr/bindings.lua"
+before=$(sha256sum "$orphan_collision/home/.config/hypr/bindings.lua")
+if HOME="$orphan_collision/home" PATH="$orphan_collision/bin:$PATH" bash "$MANAGER" repair >/dev/null 2>&1; then
+  echo "expected an orphan plus another chord owner to require manual review" >&2
+  exit 1
+fi
+after=$(sha256sum "$orphan_collision/home/.config/hypr/bindings.lua")
+[[ $before == "$after" ]]
 
 legacy=$(make_case legacy)
 printf '%s\n%s\n%s\n' \
@@ -138,6 +168,11 @@ if HOME="$malformed/home" PATH="$malformed/bin:$PATH" bash "$MANAGER" install >/
 fi
 after=$(sha256sum "$malformed/home/.config/hypr/bindings.lua")
 [[ $before == "$after" ]]
+if HOME="$malformed/home" PATH="$malformed/bin:$PATH" bash "$MANAGER" status >"$malformed/status" 2>&1; then
+  echo "expected malformed status to fail" >&2
+  exit 1
+fi
+grep -F 'persistent: invalid managed block | start-markers=1 end-markers=0' "$malformed/status" >/dev/null
 
 rollback=$(make_case rollback)
 add_live_hyprctl "$rollback"
@@ -150,4 +185,4 @@ fi
 after=$(sha256sum "$rollback/home/.config/hypr/bindings.lua")
 [[ $before == "$after" ]]
 
-echo "PASS - keybinding is current-command, migratable, reversible, collision-safe, live-resolved, self-repairing, and config-error-rollback-safe"
+echo "PASS - keybinding is installable, orphan-adopting, migratable, reversible, collision-safe, live-resolved, self-repairing, diagnostic, and config-error-rollback-safe"
