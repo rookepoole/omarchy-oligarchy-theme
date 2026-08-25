@@ -1,50 +1,201 @@
 #!/usr/bin/env python3
+"""Release gate for the OLIGARCHY theme + Tax Department plugin."""
+
+from __future__ import annotations
+
+import hashlib
+import json
 from pathlib import Path
-import tomllib, re, sys
+import re
+import sys
+import tomllib
+
 from PIL import Image
+
 
 ROOT = Path(__file__).resolve().parent
 WALLET = "0xcF84921FCedeC933a9EdF5eAAE66043424a82D38"
+PLUGIN_ID = "rookepoole.oligarchy-tax-department"
 
-required = {
+REQUIRED_COLORS = {
     "mode", "accent", "selection", "muted",
     "background", "dark_background", "darker_background", "lighter_background",
     "foreground", "dark_foreground", "light_foreground", "bright_foreground",
     "red", "yellow", "orange", "green", "cyan", "blue", "magenta", "brown",
     "bright_red", "bright_yellow", "bright_green", "bright_cyan",
-    "bright_blue", "bright_magenta"
+    "bright_blue", "bright_magenta",
 }
+DENIED_INSTALLED_NAMES = {
+    "alacritty.toml", "foot.ini", "ghostty.conf", "kitty.conf", "vscode.json",
+}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
 
-with open(ROOT / "colors.toml", "rb") as f:
-    palette = tomllib.load(f)
 
-missing = sorted(required - palette.keys())
-assert not missing, f"missing palette keys: {missing}"
-assert palette["mode"] == "dark"
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
-hex_re = re.compile(r"^#[0-9A-Fa-f]{6}$")
-for key in required - {"mode"}:
-    assert hex_re.match(palette[key]), f"invalid color {key}={palette[key]}"
 
-assert re.fullmatch(r"0x[0-9A-Fa-f]{40}", WALLET), "wallet shape invalid"
+def validate_palette() -> dict[str, object]:
+    with (ROOT / "colors.toml").open("rb") as source:
+        palette = tomllib.load(source)
+    missing = sorted(REQUIRED_COLORS - palette.keys())
+    assert not missing, f"missing palette keys: {missing}"
+    assert palette["mode"] == "dark", "OLIGARCHY must remain a dark theme"
+    for key in REQUIRED_COLORS - {"mode"}:
+        assert re.fullmatch(r"#[0-9A-Fa-f]{6}", str(palette[key])), f"invalid color {key}={palette[key]}"
+    return palette
 
-denied = {"alacritty.toml", "foot.ini", "ghostty.conf", "kitty.conf", "vscode.json"}
-for p in ROOT.rglob("*"):
-    if p.is_file():
-        assert p.name not in denied, f"Git-installed theme denied file: {p.name}"
-        assert p.suffix != ".lua", f"Git-installed theme cannot ship Lua: {p.name}"
 
-backgrounds = sorted((ROOT / "backgrounds").glob("*"))
-assert len(backgrounds) >= 3, "expected >= 3 backgrounds"
-for p in backgrounds:
-    assert p.suffix.lower() in {".jpg",".jpeg",".png",".gif",".bmp",".webp"}
-    with Image.open(p) as im:
-        assert im.size == (2560, 1440), f"unexpected wallpaper size {p.name}: {im.size}"
+def validate_safe_theme_surface() -> None:
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or ".git" in path.parts:
+            continue
+        assert path.name not in DENIED_INSTALLED_NAMES, f"Git-installed theme denied file: {path.name}"
+        assert path.suffix != ".lua", f"Git-installed theme cannot ship Lua: {path.name}"
 
-assert (ROOT / "unlock.png").is_file()
-assert (ROOT / "preview-unlock.png").is_file()
 
-print("PASS — OLIGARCHY theme package validates")
-print(f"Palette keys: {len(palette)}")
-print(f"Backgrounds: {len(backgrounds)}")
-print("Wallet:", WALLET)
+def validate_shell_overrides() -> int:
+    expected_sections = {
+        "bar", "controls", "font", "image-picker", "launcher", "lock",
+        "menu", "notifications", "polkit", "popups", "spacing", "tooltip",
+    }
+    overrides = sorted(ROOT.glob("shell.*.toml"))
+    actual_sections = {path.name.removeprefix("shell.").removesuffix(".toml") for path in overrides}
+    assert actual_sections == expected_sections, (
+        f"shell override coverage differs: expected {sorted(expected_sections)}, got {sorted(actual_sections)}"
+    )
+    for path in overrides:
+        with path.open("rb") as source:
+            values = tomllib.load(source)
+        assert values, f"empty shell override: {path.name}"
+    return len(overrides)
+
+
+def validate_plugin() -> dict[str, object]:
+    manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["schemaVersion"] == 1
+    assert manifest["id"] == PLUGIN_ID
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", manifest["id"])
+    assert ".." not in manifest["id"] and not manifest["id"].startswith("omarchy.")
+    assert manifest["version"] == (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    assert manifest["kinds"] == ["bar-widget"]
+    entry = manifest["entryPoints"]["barWidget"]
+    assert entry == "TaxDepartment.qml"
+    assert (ROOT / entry).is_file()
+    assert manifest["barWidget"]["allowMultiple"] is False
+    assert manifest["barWidget"]["defaultSection"] in {"left", "center", "right"}
+
+    symlinks = [path.relative_to(ROOT) for path in ROOT.rglob("*") if path.is_symlink() and ".git" not in path.parts]
+    assert not symlinks, f"plugin folder may not contain symlinks: {symlinks}"
+
+    qml = (ROOT / entry).read_text(encoding="utf-8")
+    model = (ROOT / "TaxModel.js").read_text(encoding="utf-8")
+    assert "ShellRoot" not in qml, "plugin entry point must be an Item-derived component"
+    assert re.search(r"\bPanel\s*\{", qml), "expected native Omarchy Panel root"
+    assert qml.count(WALLET) == 0, "wallet authority belongs in TaxModel.js only"
+    assert model.count(WALLET) == 1, "TaxModel.js must contain one wallet authority"
+    assert "https://basescan.org/address/" in qml
+    return manifest
+
+
+def validate_images() -> list[Path]:
+    backgrounds = sorted(
+        path for path in (ROOT / "backgrounds").iterdir()
+        if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+    )
+    assert [path.name for path in backgrounds] == ["+tax-department.png"], (
+        "the Tax Department must remain the one deterministic first-run background"
+    )
+    with Image.open(backgrounds[0]) as image:
+        assert image.size == (3840, 2160), f"unexpected wallpaper size: {image.size}"
+    expected_sizes = {
+        "preview.png": (1600, 900),
+        "preview-unlock.png": (1600, 900),
+        "unlock.png": (1600, 800),
+    }
+    for name, size in expected_sizes.items():
+        with Image.open(ROOT / name) as image:
+            assert image.size == size, f"unexpected {name} size: {image.size}"
+    return backgrounds
+
+
+def validate_wallet_authority() -> None:
+    assert re.fullmatch(r"0x[0-9A-Fa-f]{40}", WALLET), "wallet shape invalid"
+    treasury = (ROOT / "TREASURY.txt").read_text(encoding="utf-8").strip()
+    assert treasury == WALLET, "TREASURY.txt differs from frozen wallet"
+
+
+def validate_qr() -> tuple[str, tuple[int, int]]:
+    try:
+        import cv2
+    except ImportError as exc:
+        raise AssertionError(
+            "QR decoding requires opencv-python-headless; install the release dependencies first"
+        ) from exc
+
+    path = ROOT / "assets" / "treasury-qr.png"
+    image = cv2.imread(str(path))
+    assert image is not None, "treasury QR could not be loaded"
+    decoded, points, _ = cv2.QRCodeDetector().detectAndDecode(image)
+    assert points is not None, "treasury QR was not detected"
+    assert decoded == WALLET, f"treasury QR decoded to {decoded!r}"
+    height, width = image.shape[:2]
+    return decoded, (width, height)
+
+
+def validate_checksums() -> int:
+    manifest_path = ROOT / "SHA256SUMS"
+    seen: set[str] = set()
+    for line in manifest_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        expected, relative = line.split("  ", 1)
+        path = ROOT / relative
+        assert path.is_file(), f"checksum target missing: {relative}"
+        assert sha256(path) == expected, f"checksum mismatch: {relative}"
+        seen.add(relative)
+
+    required = {
+        path.relative_to(ROOT).as_posix()
+        for path in ROOT.rglob("*")
+        if path.is_file()
+        and ".git" not in path.parts
+        and path.name != "SHA256SUMS"
+        and "__pycache__" not in path.parts
+    }
+    missing = sorted(required - seen)
+    stale = sorted(seen - required)
+    assert not missing, f"files missing from SHA256SUMS: {missing}"
+    assert not stale, f"stale SHA256SUMS entries: {stale}"
+    return len(seen)
+
+
+def main() -> None:
+    palette = validate_palette()
+    validate_safe_theme_surface()
+    shell_overrides = validate_shell_overrides()
+    manifest = validate_plugin()
+    backgrounds = validate_images()
+    validate_wallet_authority()
+    decoded, qr_size = validate_qr()
+    checksum_count = validate_checksums()
+
+    print("PASS - OLIGARCHY 2.0 release validates")
+    print(f"Palette keys: {len(palette)}")
+    print(f"Shell surfaces: {shell_overrides}")
+    print(f"Backgrounds: {len(backgrounds)} deterministic default")
+    print(f"Plugin: {manifest['id']} @ {manifest['version']}")
+    print(f"QR: {qr_size[0]}x{qr_size[1]} -> {decoded}")
+    print(f"Checksums: {checksum_count}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except AssertionError as exc:
+        print(f"FAIL - {exc}", file=sys.stderr)
+        raise SystemExit(1)
