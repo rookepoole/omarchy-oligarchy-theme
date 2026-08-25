@@ -17,7 +17,7 @@ Panel {
   readonly property color contentUrgent: bar ? bar.urgent : Color.urgent
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var pageNames: ["REVENUE", "HOLDINGS", "PRIVILEGES", "IDLE CAPITAL", "ACQUISITIONS", "COMPOUND"]
-  readonly property var pageActionCounts: [3, 2, 4, 4, 5, 5]
+  readonly property var pageActionCounts: [3, 2, 5, 4, 5, 5]
   readonly property var pageComponents: [revenuePage, holdingsPage, privilegesPage, screensaverPage, acquisitionsPage, compoundPage]
 
   property int serial: 1040
@@ -76,6 +76,12 @@ Panel {
 
   function captureAsset() {
     runSystemAction("sleep 0.2; omarchy-capture-screenshot fullscreen save", "SCREEN ASSET CAPITALIZED", true)
+  }
+
+  function conveneExitCommittee() {
+    receipt = "EXECUTIVE EXIT COMMITTEE // CONVENED"
+    root.close()
+    Quickshell.execDetached(["omarchy-shell", "shell", "summon", moduleName, "{}"])
   }
 
   function screensaverCall(method, nextReceipt, argument) {
@@ -210,7 +216,8 @@ Panel {
       if (actionIndex === 0) lockEstate()
       else if (actionIndex === 1) toggleSilence()
       else if (actionIndex === 2) toggleMarkets()
-      else captureAsset()
+      else if (actionIndex === 3) captureAsset()
+      else conveneExitCommittee()
     } else if (pageIndex === 3) {
       if (actionIndex === 0) previewScreensaver()
       else if (actionIndex === 1) screensaverCall("enable", "IDLE CAPITAL PRIVATIZED")
@@ -244,6 +251,7 @@ Panel {
       else if (key === "d") toggleSilence()
       else if (key === "a") toggleMarkets()
       else if (key === "s") captureAsset()
+      else if (key === "b") conveneExitCommittee()
     } else if (pageIndex === 3) {
       if (key === "p") previewScreensaver()
       else if (key === "m") screensaverCall("enable", "IDLE CAPITAL PRIVATIZED")
@@ -443,7 +451,7 @@ Panel {
           width: parent.width
           text: root.pageIndex === 0 ? "1–6 desks // c copy // o ledger // r reassess"
             : root.pageIndex === 1 ? "real system telemetry // r refresh // a annual report"
-            : root.pageIndex === 2 ? "l lock // d silence // a stay awake // s screenshot"
+            : root.pageIndex === 2 ? "l lock // d silence // a stay awake // s screenshot // b board"
             : root.pageIndex === 3 ? "p preview // m make default // x restore // b brand system"
             : root.pageIndex === 4 ? "live Hyprland portfolio // arrows select // Enter acquires"
             : "s start/pause // r reset // f 25m // l 50m // b 5m recess"
@@ -568,6 +576,7 @@ Panel {
         ActionButton { width: (parent.width - parent.spacing) / 2; height: Style.space(48); action: 2; text: "KEEP MARKETS OPEN"; onClicked: root.toggleMarkets() }
         ActionButton { width: (parent.width - parent.spacing) / 2; height: Style.space(48); action: 3; text: "CAPTURE ASSET"; onClicked: root.captureAsset() }
       }
+      ActionButton { width: parent.width; height: Style.space(45); action: 4; text: "CONVENE EXECUTIVE EXIT COMMITTEE"; onClicked: root.conveneExitCommittee() }
       Row {
         width: parent.width; spacing: Style.space(7)
         NoticeCell { width: (parent.width - parent.spacing * 2) / 3; title: "ESTATE"; detail: "SESSION LOCK" }

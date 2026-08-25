@@ -83,12 +83,15 @@ def validate_plugin() -> dict[str, object]:
     assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", manifest["id"])
     assert ".." not in manifest["id"] and not manifest["id"].startswith("omarchy.")
     assert manifest["version"] == (ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert manifest["kinds"] == ["bar-widget", "service"]
+    assert manifest["kinds"] == ["bar-widget", "overlay", "service"]
     entry = manifest["entryPoints"]["barWidget"]
+    overlay_entry = manifest["entryPoints"]["overlay"]
     service_entry = manifest["entryPoints"]["service"]
     assert entry == "TaxDepartment.qml"
+    assert overlay_entry == "ExecutiveExit.qml"
     assert service_entry == "OligarchyService.qml"
     assert (ROOT / entry).is_file()
+    assert (ROOT / overlay_entry).is_file()
     assert (ROOT / service_entry).is_file()
     assert manifest["barWidget"]["allowMultiple"] is False
     assert manifest["barWidget"]["defaultSection"] in {"left", "center", "right"}
@@ -97,10 +100,12 @@ def validate_plugin() -> dict[str, object]:
     assert not symlinks, f"plugin folder may not contain symlinks: {symlinks}"
 
     qml = (ROOT / entry).read_text(encoding="utf-8")
+    overlay_qml = (ROOT / overlay_entry).read_text(encoding="utf-8")
     service_qml = (ROOT / service_entry).read_text(encoding="utf-8")
     saver_qml = (ROOT / "OligarchyScreensaver.qml").read_text(encoding="utf-8")
     model = (ROOT / "TaxModel.js").read_text(encoding="utf-8")
     assert "ShellRoot" not in qml, "plugin entry point must be an Item-derived component"
+    assert "ShellRoot" not in overlay_qml, "overlay entry point must be an Item-derived component"
     assert "ShellRoot" not in service_qml, "service entry point must be an Item-derived component"
     assert re.search(r"\bPanel\s*\{", qml), "expected native Omarchy Panel root"
     assert re.search(r"\bItem\s*\{", service_qml), "expected Item-derived service root"
@@ -116,6 +121,16 @@ def validate_plugin() -> dict[str, object]:
     assert "PORTFOLIOS" in model and "PORTFOLIO COMPANIES" in qml, "expected workspace acquisition desk"
     assert "COMPOUND INTEREST" in qml and "formatFocusTime" in model, "expected focus desk"
     assert "openAnnualReport" in qml and "omarchy-launch-floating-terminal-with-presentation" in qml, "expected terminal annual report launcher"
+    assert "conveneExitCommittee" in qml and '"shell", "summon", moduleName' in qml, "expected native exit-overlay route"
+    assert "PanelWindow" in overlay_qml and "WlrLayer.Overlay" in overlay_qml, "expected native fullscreen exit overlay"
+    assert "ConfirmDialog" in overlay_qml and "selectedIndex = 0" in overlay_qml, "disruptive session actions must default to safe confirmation"
+    for command in (
+        "omarchy-system-lock", "systemctl", "suspend", "omarchy-system-logout",
+        "omarchy-system-reboot", "omarchy-system-shutdown",
+    ):
+        assert command in overlay_qml, f"missing fixed exit action: {command}"
+    for forbidden in ("bash", "curl", "wget", "sudo", "eval", "rm -"):
+        assert forbidden not in overlay_qml, f"exit overlay must dispatch fixed argv without shell interpolation: {forbidden}"
     assert 'pageNames: ["REVENUE", "HOLDINGS", "PRIVILEGES", "IDLE CAPITAL", "ACQUISITIONS", "COMPOUND"]' in qml
     for command in (
         "omarchy-system-lock", "omarchy-toggle-notification-silencing",
@@ -180,11 +195,13 @@ def validate_images() -> list[Path]:
     desk_capture_sizes = {
         "oligarch-os-revenue.png": (595, 393),
         "oligarch-os-holdings.png": (595, 359),
-        "oligarch-os-privileges.png": (595, 348),
+        "oligarch-os-privileges.png": (595, 404),
         "oligarch-os-idle-capital.png": (595, 356),
         "oligarch-os-acquisitions.png": (595, 381),
         "oligarch-os-compound.png": (595, 408),
         "operating-system-tour.gif": (595, 408),
+        "executive-exit-committee.png": (1280, 720),
+        "executive-exit-confirmation.png": (1280, 720),
     }
     for name, size in desk_capture_sizes.items():
         with Image.open(ROOT / "assets" / name) as image:

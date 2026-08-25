@@ -16,6 +16,7 @@ OLIGARCHY 4.0 is not a wallpaper with matching colors. It turns the desktop into
 | Revenue desk | Department of Oligarch Revenue | Verified QR, address copy, BaseScan, fresh assessments |
 | Holdings desk | Machine as family-office balance sheet | Live telemetry and a floating-terminal annual report |
 | Privileges desk | System controls renamed for executives | Lock, DND, stay-awake, fullscreen screenshot |
+| Executive Exit Committee | Native session/power overlay with a quorum of one | Lock, suspend, logout, reboot, shutdown with confirmations |
 | Idle Capital desk | Four-scene native screensaver manager | Preview, opt-in default, restore, system branding |
 | Acquisitions desk | Live Hyprland workspaces as portfolio companies | Window counts, current-workspace state, direct switching |
 | Compound desk | Focus/recess clock with hostile-takeover presets | Persistent countdown, progress, sessions, completion notices |
@@ -54,6 +55,13 @@ The buttons are jokes; the actions are not:
 - **Silence Staff** toggles Do Not Disturb.
 - **Keep Markets Open** toggles stay-awake/idle behavior.
 - **Capture Asset** saves a fullscreen screenshot.
+- **Convene Executive Exit Committee** opens a native keyboard-driven session and power overlay.
+
+![Executive Exit Committee](assets/executive-exit-committee.png)
+
+Lock Estate acts immediately. Suspend Labor, Exit Market, Restructure, and Liquidate Portfolio each open a second board vote that defaults to **Table**, so Enter cannot accidentally pass a disruptive motion.
+
+![Confirmation vote for a disruptive board motion](assets/executive-exit-confirmation.png)
 
 ### 4. Private Idle Capital
 
@@ -131,6 +139,7 @@ Add the native operating system layer:
 
 ```bash
 omarchy plugin add https://github.com/rookepoole/omarchy-oligarchy-theme.git --enable
+omarchy-restart-shell
 ```
 
 Omarchy correctly treats plugins as code and shows its normal review warning. The visual theme and executable plugin remain separate approval boundaries even though they share one repository.
@@ -193,11 +202,14 @@ omarchy-shell oligarchy-screensaver status
 | Arrow keys / `h j k l` | Move between actions |
 | Enter / Space | Run the selected action |
 | `c o r` | Copy, open ledger, reassess on Revenue |
-| `l d a s` | Lock, DND, stay awake, screenshot on Privileges |
+| `l d a s b` | Lock, DND, stay awake, screenshot, Exit Committee on Privileges |
 | `p m x b` | Preview, make default, restore, brand on Idle Capital |
 | Arrow keys + Enter | Select and acquire a workspace portfolio company |
 | `s r f l b` | Start/pause, reset, 25m, 50m, or 5m recess on Compound |
 | Escape | Close the panel or screensaver |
+| Exit overlay: arrows / Tab | Move between board motions |
+| Exit overlay: Enter | Request a motion; disruptive actions require a second vote |
+| Exit overlay: Escape | Table the vote or adjourn the committee |
 
 ## Safety boundary
 
@@ -211,7 +223,8 @@ The separately approved plugin:
 - stores only reversible user state under `~/.local/state/oligarchy/`;
 - backs up branding before changing it and restores the previous bytes;
 - uses fixed system commands rather than interpolating external input;
-- launches its read-only annual report through Omarchy's own floating-terminal helper and reads the existing `TREASURY.txt` authority instead of duplicating the wallet.
+- launches its read-only annual report through Omarchy's own floating-terminal helper and reads the existing `TREASURY.txt` authority instead of duplicating the wallet;
+- dispatches only Omarchy's fixed session commands from the Exit Committee, and puts suspend, logout, reboot, and shutdown behind a safe-default confirmation vote.
 
 Remove the interactive layer without touching the theme:
 
@@ -237,7 +250,7 @@ bash tests/annual_report.test.sh
 omarchy plugin validate .
 ```
 
-The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, six-desk interaction coverage, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points under current Quickshell/Omarchy UI modules, renders every desk and screensaver scene under Wayland, proves a workspace dispatch and focus-cycle maturity, exercises reversible system state, and decodes the QR from the rendered panel.
+The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, six-desk interaction coverage, the Exit Committee's fixed-command and safe-confirmation boundary, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads all three plugin entry points under current Quickshell/Omarchy UI modules, renders every desk, exit state, and screensaver scene under Wayland, proves confirmation blocks unwanted dispatch, exercises workspace dispatch, focus-cycle maturity, and reversible system state, and decodes the QR from the rendered panel.
 
 ## Palette
 
