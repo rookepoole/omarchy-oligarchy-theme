@@ -86,7 +86,6 @@ if [[ $launcher_installed == yes ]]; then
 else
   printf 'Resolve the reported desktop-file conflict before retrying launcher-entries.sh.\n'
 fi
-printf 'Restart the Omarchy shell to load this generation: omarchy-restart-shell\n'
-printf 'If the old generation remains after that, reboot once.\n'
+printf 'Reboot now to load this plugin generation.\n'
 printf 'Binding diagnostics: bash %s/keybinding.sh status\n' "$SCRIPT_DIR"
 printf 'The direct plugin opener is: omarchy-shell shell toggle %s\n' "$PLUGIN_ID"

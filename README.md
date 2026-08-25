@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 4.4.2 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.4.3 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -173,7 +173,7 @@ reboot
 
 If it stops because the plugin directory contains local work or is not a Git checkout, it leaves that directory untouched and reports the exact path.
 
-The installer rescans and verifies discovery before it reports success, but the running desktop can still retain the previous plugin generation. Restart the shell after an install or update. If that system command does not replace the visible generation, reboot once; that fallback has been confirmed on a real Omarchy installation. The installer deliberately does not restart or reboot the active session for you.
+The installer rescans and verifies discovery before it reports success, but the running desktop retains the previous plugin generation until the session is rebooted. **Reboot after every native-layer install or update.** That lifecycle has been confirmed on a real Omarchy installation; the installer deliberately does not reboot the active session for you.
 
 The installer also adds one collision-checked, managed Hyprland binding:
 

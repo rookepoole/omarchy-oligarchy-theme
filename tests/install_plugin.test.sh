@@ -35,7 +35,7 @@ case "$*" in
     printf 'add\n' >>"$case_root/log"
     plugin_dir="$HOME/.config/omarchy/plugins/rookepoole.oligarchy-tax-department"
     mkdir -p "$plugin_dir/.git"
-    printf '{"version":"4.4.2"}\n' >"$plugin_dir/manifest.json"
+    printf '{"version":"4.4.3"}\n' >"$plugin_dir/manifest.json"
     printf 'enabled\n' >"$case_root/state"
     ;;
   "menu keybindings --print")
@@ -90,8 +90,11 @@ absent=$(new_case absent)
 absent_output=$(run_installer "$absent")
 grep -qx 'add' "$absent/log"
 grep -qx 'enabled' "$absent/state"
-grep -F 'omarchy-restart-shell' <<<"$absent_output" >/dev/null
-grep -F 'reboot once' <<<"$absent_output" >/dev/null
+grep -F 'Reboot now to load this plugin generation.' <<<"$absent_output" >/dev/null
+if grep -F 'omarchy-restart-shell' <<<"$absent_output" >/dev/null; then
+  echo "installer must not recommend a shell restart for plugin generation changes" >&2
+  exit 1
+fi
 grep -F 'Super+Shift+T' <<<"$absent_output" >/dev/null
 grep -Fqx 'o.bind("SUPER + SHIFT + T", "Tax Department", "omarchy-shell shell toggle rookepoole.oligarchy-tax-department")' \
   "$absent/home/.config/hypr/bindings.lua"
