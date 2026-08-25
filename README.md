@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 4.4.1 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.4.2 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -187,7 +187,7 @@ It uses Omarchy's stable shell-level plugin route, so the panel opens on the foc
 bash ~/.config/omarchy/themes/oligarchy/keybinding.sh remove
 ```
 
-The installer verifies the binding in Hyprland's resolved live table, not just in the Lua file. It safely migrates the earlier managed command and repairs a reload-only miss in the current session. Inspect both persistent and live state at any time with:
+The installer verifies the exact materialized Lua block and Hyprland's resolved live table, not just the command text. It safely migrates the earlier shell-style markers and unmarked command, places the block before a legal module-level `return`, and repairs a reload-only miss in the current session. Inspect both persistent and live state at any time with:
 
 ```bash
 bash ~/.config/omarchy/themes/oligarchy/keybinding.sh status

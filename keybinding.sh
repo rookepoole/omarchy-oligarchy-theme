@@ -11,14 +11,17 @@ readonly CHORD="SUPER + SHIFT + T"
 readonly DESCRIPTION="Tax Department"
 readonly PLUGIN_ID="rookepoole.oligarchy-tax-department"
 readonly COMMAND="omarchy-shell shell toggle $PLUGIN_ID"
-readonly START_MARKER="# >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
-readonly END_MARKER="# <<< OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
+readonly START_MARKER="-- >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
+readonly END_MARKER="-- <<< OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
+readonly LEGACY_START_MARKER="# >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
+readonly LEGACY_END_MARKER="# <<< OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
 readonly BINDING_LINE="o.bind(\"$CHORD\", \"$DESCRIPTION\", \"$COMMAND\")"
 readonly LEGACY_BINDING_LINE="o.bind(\"$CHORD\", \"$DESCRIPTION\", \"$COMMAND '{}'\")"
 readonly CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 readonly BINDINGS_FILE="$CONFIG_HOME/hypr/bindings.lua"
 readonly STATE_DIR="$STATE_HOME/oligarchy/keybinding"
+readonly ERROR_LOG="$STATE_DIR/last-config-error.txt"
 
 fail() {
   printf 'OLIGARCHY keybind: %s\n' "$*" >&2
@@ -32,20 +35,56 @@ marker_count() {
 }
 
 managed_block_line() {
+  local start finish
   [[ -f $BINDINGS_FILE ]] || return 1
-  awk -v start="$START_MARKER" -v finish="$END_MARKER" '
+  start=$(managed_start_marker) || return 1
+  finish=$(managed_end_marker) || return 1
+  awk -v start="$start" -v finish="$finish" '
     $0 == start { inside = 1; next }
     $0 == finish { exit }
     inside { print }
   ' "$BINDINGS_FILE"
 }
 
+managed_marker_style() {
+  local current_starts current_ends legacy_starts legacy_ends
+  current_starts=$(marker_count "$START_MARKER")
+  current_ends=$(marker_count "$END_MARKER")
+  legacy_starts=$(marker_count "$LEGACY_START_MARKER")
+  legacy_ends=$(marker_count "$LEGACY_END_MARKER")
+  if [[ $current_starts == 1 && $current_ends == 1 && $legacy_starts == 0 && $legacy_ends == 0 ]]; then
+    printf 'current\n'
+    return 0
+  fi
+  if [[ $legacy_starts == 1 && $legacy_ends == 1 && $current_starts == 0 && $current_ends == 0 ]]; then
+    printf 'legacy\n'
+    return 0
+  fi
+  return 1
+}
+
+managed_start_marker() {
+  case "$(managed_marker_style)" in
+    current) printf '%s\n' "$START_MARKER" ;;
+    legacy) printf '%s\n' "$LEGACY_START_MARKER" ;;
+    *) return 1 ;;
+  esac
+}
+
+managed_end_marker() {
+  case "$(managed_marker_style)" in
+    current) printf '%s\n' "$END_MARKER" ;;
+    legacy) printf '%s\n' "$LEGACY_END_MARKER" ;;
+    *) return 1 ;;
+  esac
+}
+
 managed_block_shape_is_valid() {
-  local start_line end_line content
-  [[ $(marker_count "$START_MARKER") == 1 ]] || return 1
-  [[ $(marker_count "$END_MARKER") == 1 ]] || return 1
-  start_line=$(grep -Fnx -- "$START_MARKER" "$BINDINGS_FILE")
-  end_line=$(grep -Fnx -- "$END_MARKER" "$BINDINGS_FILE")
+  local start finish start_line end_line content
+  start=$(managed_start_marker) || return 1
+  finish=$(managed_end_marker) || return 1
+  start_line=$(grep -Fnx -- "$start" "$BINDINGS_FILE")
+  end_line=$(grep -Fnx -- "$finish" "$BINDINGS_FILE")
   start_line=${start_line%%:*}
   end_line=${end_line%%:*}
   (( end_line == start_line + 2 )) || return 1
@@ -54,7 +93,8 @@ managed_block_shape_is_valid() {
 }
 
 managed_block_is_current() {
-  managed_block_shape_is_valid && [[ $(managed_block_line) == "$BINDING_LINE" ]]
+  [[ $(managed_marker_style 2>/dev/null || true) == current ]] &&
+    managed_block_shape_is_valid && [[ $(managed_block_line) == "$BINDING_LINE" ]]
 }
 
 normalized_chord() {
@@ -167,7 +207,7 @@ wait_for_live_binding() {
 }
 
 activate_and_verify_live_binding() {
-  local backup="$1" existed="$2" errors
+  local backup="$1" existed="$2" errors summary
   live_session_available || {
     printf 'OLIGARCHY keybind: persistent binding installed; no live Hyprland session was available to verify.\n'
     return 0
@@ -179,8 +219,11 @@ activate_and_verify_live_binding() {
   fi
   errors=$(hyprctl configerrors 2>/dev/null || true)
   if [[ -n $errors ]]; then
+    mkdir -p -- "$STATE_DIR"
+    printf '%s\n' "$errors" >"$ERROR_LOG"
+    summary=${errors//$'\n'/ | }
     restore_prior_file "$backup" "$existed"
-    fail "the binding introduced a Hyprland config error; the prior bindings file was restored"
+    fail "the binding introduced a Hyprland config error: $summary; the prior bindings file was restored; full diagnostic: $ERROR_LOG"
   fi
   wait_for_live_binding && {
     printf 'OLIGARCHY keybind: live Hyprland resolved %s -> %s.\n' "$CHORD" "$DESCRIPTION"
@@ -208,54 +251,74 @@ backup_bindings() {
   printf '%s\n' "$backup"
 }
 
-write_current_managed_block() {
-  local temporary
+prepend_current_managed_block() {
+  local source="$1" temporary has_bom=no
   temporary=$(mktemp "${BINDINGS_FILE}.oligarchy.XXXXXX")
-  awk -v start="$START_MARKER" -v finish="$END_MARKER" -v binding="$BINDING_LINE" '
-    $0 == start { print start; print binding; inside = 1; next }
-    $0 == finish { print finish; inside = 0; next }
-    !inside { print }
-    END { if (inside) exit 2 }
-  ' "$BINDINGS_FILE" >"$temporary"
+  if [[ -s $source && $(head -c 3 -- "$source" | od -An -tx1 | tr -d '[:space:]') == efbbbf ]]; then
+    has_bom=yes
+  fi
+  if [[ $has_bom == yes ]]; then
+    printf '\357\273\277\n%s\n%s\n%s\n' "$START_MARKER" "$BINDING_LINE" "$END_MARKER" >"$temporary"
+    tail -c +4 -- "$source" >>"$temporary"
+  else
+    printf '%s\n%s\n%s\n' "$START_MARKER" "$BINDING_LINE" "$END_MARKER" >"$temporary"
+    cat -- "$source" >>"$temporary"
+  fi
   chmod --reference="$BINDINGS_FILE" "$temporary" 2>/dev/null || true
   mv -- "$temporary" "$BINDINGS_FILE"
+}
+
+strip_managed_block() {
+  local source="$1" target="$2" start finish
+  start=$(managed_start_marker) || return 1
+  finish=$(managed_end_marker) || return 1
+  awk -v start="$start" -v finish="$finish" '
+    $0 == start { inside = 1; found++; next }
+    $0 == finish { inside = 0; next }
+    !inside { print }
+    END { if (inside || found != 1) exit 2 }
+  ' "$source" >"$target"
+}
+
+normalize_managed_block_to_top() {
+  local body
+  body=$(mktemp "${BINDINGS_FILE}.oligarchy-body.XXXXXX")
+  strip_managed_block "$BINDINGS_FILE" "$body"
+  prepend_current_managed_block "$body"
+  rm -f -- "$body"
 }
 
 adopt_known_orphan_binding() {
-  local temporary
-  temporary=$(mktemp "${BINDINGS_FILE}.oligarchy.XXXXXX")
-  awk -v current="$BINDING_LINE" -v legacy="$LEGACY_BINDING_LINE" \
-      -v start="$START_MARKER" -v finish="$END_MARKER" '
-    $0 == current || $0 == legacy {
-      replaced++
-      print start
-      print current
-      print finish
-      next
-    }
+  local body
+  body=$(mktemp "${BINDINGS_FILE}.oligarchy-body.XXXXXX")
+  awk -v current="$BINDING_LINE" -v legacy="$LEGACY_BINDING_LINE" '
+    $0 == current || $0 == legacy { removed++; next }
     { print }
-    END { if (replaced != 1) exit 2 }
-  ' "$BINDINGS_FILE" >"$temporary"
-  chmod --reference="$BINDINGS_FILE" "$temporary" 2>/dev/null || true
-  mv -- "$temporary" "$BINDINGS_FILE"
+    END { if (removed != 1) exit 2 }
+  ' "$BINDINGS_FILE" >"$body"
+  prepend_current_managed_block "$body"
+  rm -f -- "$body"
 }
 
 install_binding() {
-  local starts ends backup existed=no orphan_count chord_count
-  starts=$(marker_count "$START_MARKER")
-  ends=$(marker_count "$END_MARKER")
+  local starts ends backup existed=no orphan_count chord_count marker_style
+  starts=$(( $(marker_count "$START_MARKER") + $(marker_count "$LEGACY_START_MARKER") ))
+  ends=$(( $(marker_count "$END_MARKER") + $(marker_count "$LEGACY_END_MARKER") ))
 
   if [[ $starts != 0 || $ends != 0 ]]; then
     managed_block_shape_is_valid || fail "managed markers are incomplete or edited; refusing to guess"
-    preflight_live_config
+    marker_style=$(managed_marker_style)
+    [[ $marker_style == current ]] && preflight_live_config
     [[ -f $BINDINGS_FILE ]] && existed=yes
     backup=$(backup_bindings)
     if managed_block_is_current; then
-      printf 'OLIGARCHY keybind: persistent %s binding is current.\n' "$CHORD"
+      printf 'OLIGARCHY keybind: persistent %s binding is current; normalizing its safe module position.\n' "$CHORD"
+    elif [[ $marker_style == legacy ]]; then
+      printf 'OLIGARCHY keybind: replacing the shipped shell-style Lua markers with valid Lua comments.\n'
     else
-      write_current_managed_block
       printf 'OLIGARCHY keybind: migrated the owned binding to the current command.\n'
     fi
+    normalize_managed_block_to_top
     activate_and_verify_live_binding "$backup" "$existed"
     return 0
   fi
@@ -286,14 +349,14 @@ install_binding() {
   backup=$(backup_bindings)
   mkdir -p -- "$(dirname -- "$BINDINGS_FILE")"
   touch -- "$BINDINGS_FILE"
-  printf '\n%s\n%s\n%s\n' "$START_MARKER" "$BINDING_LINE" "$END_MARKER" >>"$BINDINGS_FILE"
+  prepend_current_managed_block "$BINDINGS_FILE"
   activate_and_verify_live_binding "$backup" "$existed"
 }
 
 remove_binding() {
-  local starts ends backup existed=yes temporary
-  starts=$(marker_count "$START_MARKER")
-  ends=$(marker_count "$END_MARKER")
+  local starts ends backup existed=yes temporary start finish
+  starts=$(( $(marker_count "$START_MARKER") + $(marker_count "$LEGACY_START_MARKER") ))
+  ends=$(( $(marker_count "$END_MARKER") + $(marker_count "$LEGACY_END_MARKER") ))
   if [[ $starts == 0 && $ends == 0 ]]; then
     printf 'OLIGARCHY keybind: no managed binding is installed.\n'
     return 0
@@ -303,7 +366,9 @@ remove_binding() {
   preflight_live_config
   backup=$(backup_bindings)
   temporary=$(mktemp "${BINDINGS_FILE}.oligarchy.XXXXXX")
-  awk -v start="$START_MARKER" -v finish="$END_MARKER" '
+  start=$(managed_start_marker)
+  finish=$(managed_end_marker)
+  awk -v start="$start" -v finish="$finish" '
     $0 == start { inside = 1; next }
     $0 == finish { inside = 0; next }
     !inside { print }
@@ -322,9 +387,13 @@ remove_binding() {
 }
 
 status_binding() {
-  local starts ends orphan_count
-  starts=$(marker_count "$START_MARKER")
-  ends=$(marker_count "$END_MARKER")
+  local starts ends orphan_count current_starts current_ends legacy_starts legacy_ends
+  current_starts=$(marker_count "$START_MARKER")
+  current_ends=$(marker_count "$END_MARKER")
+  legacy_starts=$(marker_count "$LEGACY_START_MARKER")
+  legacy_ends=$(marker_count "$LEGACY_END_MARKER")
+  starts=$((current_starts + legacy_starts))
+  ends=$((current_ends + legacy_ends))
   if [[ $starts == 0 && $ends == 0 ]]; then
     orphan_count=$(known_orphan_binding_count)
     if (( orphan_count == 1 )); then
@@ -337,7 +406,8 @@ status_binding() {
     return 1
   fi
   if ! managed_block_shape_is_valid; then
-    printf 'persistent: invalid managed block | start-markers=%s end-markers=%s\n' "$starts" "$ends"
+    printf 'persistent: invalid managed block | lua-markers=%s/%s legacy-markers=%s/%s\n' \
+      "$current_starts" "$current_ends" "$legacy_starts" "$legacy_ends"
     return 1
   fi
   if ! managed_block_is_current; then

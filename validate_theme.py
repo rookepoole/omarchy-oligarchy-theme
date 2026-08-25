@@ -173,6 +173,8 @@ def validate_installer() -> None:
     assert 'CHORD="SUPER + SHIFT + T"' in keybinding
     assert 'PLUGIN_ID="rookepoole.oligarchy-tax-department"' in keybinding
     assert 'readonly COMMAND="omarchy-shell shell toggle $PLUGIN_ID"' in keybinding, "current Tax command must be argument-free"
+    assert 'START_MARKER="-- >>> OLIGARCHY' in keybinding, "managed Lua block must use Lua comments"
+    assert 'LEGACY_START_MARKER="# >>> OLIGARCHY' in keybinding, "shipped shell-style markers must remain migratable"
     assert "hl.unbind" not in keybinding, "keybinding manager must never unbind an existing action"
     assert "configerrors" in keybinding and "prior bindings file was restored" in keybinding
     assert "live_bind_records" in keybinding and "live_managed_binding_present" in keybinding

@@ -70,6 +70,7 @@ if HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" status >"$clean/st
 fi
 grep -F 'persistent: missing (run repair to install it)' "$clean/status" >/dev/null
 HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" install >/dev/null
+[[ $(sed -n '1p' "$clean/home/.config/hypr/bindings.lua") == '-- >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' ]]
 grep -Fqx "$CURRENT" "$clean/home/.config/hypr/bindings.lua"
 HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" install >/dev/null
 [[ $(grep -Fc 'OLIGARCHY TAX DEPARTMENT KEYBIND' "$clean/home/.config/hypr/bindings.lua") == 2 ]]
@@ -77,6 +78,14 @@ HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" status | grep -F 'per
 HOME="$clean/home" PATH="$clean/bin:$PATH" bash "$MANAGER" remove >/dev/null
 grep -Fqx -- '-- personal binding file' "$clean/home/.config/hypr/bindings.lua"
 ! grep -Fq 'Tax Department' "$clean/home/.config/hypr/bindings.lua"
+
+return_tail=$(make_case return-tail)
+printf '%s\n%s\n' '-- legal Lua module tail' 'return {}' >"$return_tail/home/.config/hypr/bindings.lua"
+HOME="$return_tail/home" PATH="$return_tail/bin:$PATH" bash "$MANAGER" repair >/dev/null
+[[ $(sed -n '1p' "$return_tail/home/.config/hypr/bindings.lua") == '-- >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' ]]
+[[ $(tail -n 1 "$return_tail/home/.config/hypr/bindings.lua") == 'return {}' ]]
+HOME="$return_tail/home" PATH="$return_tail/bin:$PATH" bash "$MANAGER" remove >/dev/null
+printf '%s\n%s\n' '-- legal Lua module tail' 'return {}' | diff -u - "$return_tail/home/.config/hypr/bindings.lua"
 
 orphan=$(make_case orphan)
 printf '%s\n%s\n%s\n' '-- before' "$LEGACY" '-- after' >"$orphan/home/.config/hypr/bindings.lua"
@@ -109,6 +118,8 @@ printf '%s\n%s\n%s\n' \
   '# <<< OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' \
   >"$legacy/home/.config/hypr/bindings.lua"
 HOME="$legacy/home" PATH="$legacy/bin:$PATH" bash "$MANAGER" install >/dev/null
+grep -Fqx -- '-- >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' "$legacy/home/.config/hypr/bindings.lua"
+! grep -Fqx -- '# >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' "$legacy/home/.config/hypr/bindings.lua"
 grep -Fqx "$CURRENT" "$legacy/home/.config/hypr/bindings.lua"
 ! grep -Fq "'{}'" "$legacy/home/.config/hypr/bindings.lua"
 
@@ -151,8 +162,8 @@ after=$(sha256sum "$live_conflict/home/.config/hypr/bindings.lua")
 missing=$(make_case missing)
 add_live_hyprctl "$missing"
 printf '\n%s\n%s\n%s\n' \
-  '# >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' "$CURRENT" \
-  '# <<< OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' \
+  '-- >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' "$CURRENT" \
+  '-- <<< OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' \
   >"$missing/home/.config/hypr/bindings.lua"
 if run_live "$missing" missing status >/dev/null 2>&1; then
   echo "expected status to reject a persistent-only live binding" >&2
@@ -160,7 +171,7 @@ if run_live "$missing" missing status >/dev/null 2>&1; then
 fi
 
 malformed=$(make_case malformed)
-printf '%s\n' '# >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' >"$malformed/home/.config/hypr/bindings.lua"
+printf '%s\n' '-- >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)' >"$malformed/home/.config/hypr/bindings.lua"
 before=$(sha256sum "$malformed/home/.config/hypr/bindings.lua")
 if HOME="$malformed/home" PATH="$malformed/bin:$PATH" bash "$MANAGER" install >/dev/null 2>&1; then
   echo "expected malformed managed markers to be refused" >&2
@@ -172,7 +183,7 @@ if HOME="$malformed/home" PATH="$malformed/bin:$PATH" bash "$MANAGER" status >"$
   echo "expected malformed status to fail" >&2
   exit 1
 fi
-grep -F 'persistent: invalid managed block | start-markers=1 end-markers=0' "$malformed/status" >/dev/null
+grep -F 'persistent: invalid managed block | lua-markers=1/0 legacy-markers=0/0' "$malformed/status" >/dev/null
 
 rollback=$(make_case rollback)
 add_live_hyprctl "$rollback"
@@ -184,5 +195,6 @@ if run_live "$rollback" config-error install >/dev/null 2>&1; then
 fi
 after=$(sha256sum "$rollback/home/.config/hypr/bindings.lua")
 [[ $before == "$after" ]]
+grep -Fqx 'oligarchy test error' "$rollback/home/.local/state/oligarchy/keybinding/last-config-error.txt"
 
 echo "PASS - keybinding is installable, orphan-adopting, migratable, reversible, collision-safe, live-resolved, self-repairing, diagnostic, and config-error-rollback-safe"
