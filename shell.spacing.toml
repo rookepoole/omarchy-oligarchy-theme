@@ -1,0 +1,7 @@
+scale = 0.96
+scale-with-font = true
+control-gap = 7
+row-gap = 7
+panel-gap = 12
+panel-padding = 16
+popup-padding = 13

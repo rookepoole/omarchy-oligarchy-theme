@@ -1,93 +1,82 @@
-# OLIGARCHY — Omarchy Theme
+# OLIGARCHY
 
-> **Elite capital. Public code.**
+> **Elite capital. Public code. Pay your taxes.**
 
-A dark, restrained, self-aware Omarchy theme built for DHH's August 2026
-"Oligarchy theme" challenge: funny, but good-looking enough to ship.
+![OLIGARCHY — Department of Oligarch Revenue](preview.png)
 
-## Design
+A complete Omarchy Quattro theme for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY is **90% serious desktop / 10% corporate absurdity**:
-- near-black private-equity surfaces
-- shareholder green accent
-- champagne-gold secondary accent
-- warm annual-report ivory text
-- restrained green→gold active-border gradient
-- terminal / annual-report / finance-console visual language
+The design language is equal parts financial terminal, government tax notice, 1980s annual report, private banking, and Unix workstation. The joke is loud enough to land and restrained enough to leave the desktop usable.
 
-The default wallpaper is intentionally the most shippable. The jokes get
-more obvious as you cycle backgrounds.
+## The Department of Oligarch Revenue is the default
 
-## The tax department
+The active `backgrounds/` directory intentionally contains **one** wallpaper, prefixed with `+` so it sorts ahead of stale numeric backgrounds during manual upgrades:
 
-One optional wallpaper contains:
+`backgrounds/+tax-department.png`
 
-**PAY YOUR TAXES TO THE OLIGARCH**
+That makes the Department of Oligarch Revenue the first-run OLIGARCHY desktop instead of relying on filename ordering among multiple wallpapers.
 
-**BASE TREASURY:** `0xcF84921FCedeC933a9EdF5eAAE66043424a82D38`
+## Pay your taxes to the oligarch
 
-The address is intentionally public-facing and is included as supplied by
-the theme author.
-
-## Install from Git
-
-Once this repository is public:
-
-```bash
-omarchy theme install https://github.com/YOUR-USER/omarchy-oligarchy-theme.git
-```
-
-Omarchy's naming convention strips `omarchy-` and `-theme`, so the installed
-theme appears as `oligarchy`.
-
-## Local development install
-
-```bash
-mkdir -p ~/.config/omarchy/themes/oligarchy
-cp -r ./* ~/.config/omarchy/themes/oligarchy/
-omarchy theme set oligarchy
-```
-
-Use the background picker to cycle the included wallpapers:
+**Network:** Base  
+**Chain ID:** 8453  
+**Treasury:**
 
 ```text
-Super + Ctrl + Space
+0xcF84921FCedeC933a9EdF5eAAE66043424a82D38
 ```
 
-## Compatibility target
+![OLIGARCH Treasury](assets/treasury-card.png)
 
-Built against the current Omarchy Quattro theme model:
-- `colors.toml` is the source palette.
-- `shell.<section>.toml` files override generated shell sections.
-- wallpapers live under `backgrounds/`.
-- repo-installed themes must not rely on Lua, terminal config files, or
-  `vscode.json`; current Omarchy deliberately strips those from untrusted
-  Git-installed themes.
+The main wallpaper contains both the full address and a QR code encoding the exact address.
 
-This repository therefore contains **no executable theme code**.
-
-## Included backgrounds
-
-1. `0-annual-report.png` — default, restrained, ship-ready.
-2. `1-hostile-takeover.png` — corporate acquisition terminal joke.
-3. `2-tax-office.png` — Base wallet / oligarch tax joke.
-
-## Validation
+After installation, copy the treasury address directly to the Wayland clipboard with:
 
 ```bash
-python validate_theme.py
+wl-copy < ~/.config/omarchy/themes/oligarchy/TREASURY.txt
 ```
 
-For final visual acceptance on a real Omarchy machine:
+Or print it with:
 
 ```bash
-omarchy theme set oligarchy
-omarchy capture screenshot fullscreen save
+cat ~/.config/omarchy/themes/oligarchy/TREASURY.txt
 ```
 
-Then inspect the theme selector, launcher, notifications, lock screen,
-terminal/editor colors, and all three wallpapers.
+No payment is required to use the theme. Voluntary compliance remains mandatory.
 
-## Status
+## Install
 
-See `BUILD_PLAN.md`.
+```bash
+omarchy theme install https://github.com/rookepoole/omarchy-oligarchy-theme.git
+```
+
+## Included theme surfaces
+
+OLIGARCHY overrides the current Quattro palette plus the bar, controls, spacing, typography, popups, tooltips, notifications, launcher, menus, Polkit, lock screen, and image picker. It also ships matching unlock art, `Yaru-sage` icons, and shareholder-green keyboard RGB.
+
+The repository deliberately includes no Lua, terminal launcher configs, or `vscode.json`, keeping the Git-installed theme color/art-only.
+
+## Gallery
+
+The gallery art is intentionally **not** inside `backgrounds/`, so it cannot replace the Tax Department as the automatic first-run wallpaper.
+
+### Annual Report
+
+![Annual Report](gallery/annual-report.png)
+
+### Hostile Takeover
+
+![Hostile Takeover](gallery/hostile-takeover.png)
+
+## Palette
+
+- **Private Equity Black** — `#080B0A`
+- **Shareholder Green** — `#A6D96A`
+- **Golden Parachute** — `#D4B35A`
+- **Annual Report Ivory** — `#E9E5D6`
+- **Liquidation Red** — `#DA655E`
+- **Base Blue** — `#5D8CEB`
+
+## License
+
+MIT. Public code, naturally.

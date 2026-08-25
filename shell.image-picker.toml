@@ -1,0 +1,7 @@
+scrim = "#040504"
+scrim-alpha = 0.64
+text = "#E9E5D6"
+selected-border = "rgba(a6d96aee) rgba(d4b35aee) 38deg"
+selected-border-alpha = 1.0
+unselected-border = "#7F887A"
+unselected-border-alpha = 0.32
