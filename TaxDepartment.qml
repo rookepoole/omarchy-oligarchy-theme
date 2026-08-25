@@ -11,6 +11,9 @@ Panel {
 
   readonly property string wallet: TaxModel.WALLET
   readonly property string explorerUrl: "https://basescan.org/address/" + wallet
+  readonly property color contentForeground: bar ? bar.foreground : Color.foreground
+  readonly property color contentUrgent: bar ? bar.urgent : Color.urgent
+  readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
   property int serial: 1040
   property var currentAssessment: TaxModel.assessment(serial)
   property int actionIndex: 0
@@ -128,8 +131,8 @@ Panel {
             Text {
               width: parent.width
               text: "DEPARTMENT OF OLIGARCH REVENUE"
-              color: root.bar.foreground
-              font.family: root.bar.fontFamily
+              color: root.contentForeground
+              font.family: root.contentFontFamily
               font.pixelSize: Style.font.title
               font.bold: true
               elide: Text.ElideRight
@@ -139,7 +142,7 @@ Panel {
               width: parent.width
               text: root.receipt
               color: Color.accent
-              font.family: root.bar.fontFamily
+              font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
               font.letterSpacing: 1
@@ -162,7 +165,7 @@ Panel {
               anchors.centerIn: parent
               text: "BASE // 8453"
               color: Color.accent
-              font.family: root.bar.fontFamily
+              font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
             }
@@ -170,7 +173,7 @@ Panel {
         }
 
         PanelSeparator {
-          foreground: root.bar.foreground
+          foreground: root.contentForeground
         }
 
         Row {
@@ -202,7 +205,7 @@ Panel {
             Text {
               text: "NOTICE OF ASSESSMENT"
               color: "#D4B35A"
-              font.family: root.bar.fontFamily
+              font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
               font.letterSpacing: 1
@@ -211,8 +214,8 @@ Panel {
             Text {
               width: parent.width
               text: "PAY YOUR TAXES\nTO THE OLIGARCH."
-              color: root.bar.foreground
-              font.family: root.bar.fontFamily
+              color: root.contentForeground
+              font.family: root.contentFontFamily
               font.pixelSize: Style.font.heading
               font.bold: true
               lineHeight: 1.05
@@ -220,8 +223,8 @@ Panel {
 
             Text {
               text: "TREASURY ADDRESS"
-              color: Qt.darker(root.bar.foreground, 1.7)
-              font.family: root.bar.fontFamily
+              color: Qt.darker(root.contentForeground, 1.7)
+              font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
             }
@@ -230,7 +233,7 @@ Panel {
               width: parent.width
               text: TaxModel.splitWallet(root.wallet)
               color: Color.accent
-              font.family: root.bar.fontFamily
+              font.family: root.contentFontFamily
               font.pixelSize: Style.font.body
               font.bold: true
               lineHeight: 1.05
@@ -252,13 +255,13 @@ Panel {
             width: (parent.width - parent.spacing * 2) / 3
             label: "AUDIT RISK"
             value: root.currentAssessment.risk
-            valueColor: root.currentAssessment.rate >= 90 ? Color.urgent : "#D4B35A"
+            valueColor: root.currentAssessment.rate >= 90 ? root.contentUrgent : "#D4B35A"
           }
           StatCell {
             width: (parent.width - parent.spacing * 2) / 3
             label: "EXEMPTIONS"
             value: "DENIED"
-            valueColor: Color.urgent
+            valueColor: root.contentUrgent
           }
         }
 
@@ -272,9 +275,9 @@ Panel {
             text: "COPY ADDRESS"
             bordered: true
             hasCursor: root.cursorActive && root.actionIndex === 0
-            foreground: root.bar.foreground
+            foreground: root.contentForeground
             accent: Color.accent
-            fontFamily: root.bar.fontFamily
+            fontFamily: root.contentFontFamily
             fontSize: Style.font.caption
             onHovered: function(value) { if (value) { root.cursorActive = true; root.actionIndex = 0 } }
             onClicked: root.copyAddress()
@@ -284,9 +287,9 @@ Panel {
             text: "PUBLIC LEDGER"
             bordered: true
             hasCursor: root.cursorActive && root.actionIndex === 1
-            foreground: root.bar.foreground
+            foreground: root.contentForeground
             accent: Color.accent
-            fontFamily: root.bar.fontFamily
+            fontFamily: root.contentFontFamily
             fontSize: Style.font.caption
             onHovered: function(value) { if (value) { root.cursorActive = true; root.actionIndex = 1 } }
             onClicked: root.openExplorer()
@@ -296,9 +299,9 @@ Panel {
             text: "REASSESS"
             bordered: true
             hasCursor: root.cursorActive && root.actionIndex === 2
-            foreground: root.bar.foreground
+            foreground: root.contentForeground
             accent: Color.accent
-            fontFamily: root.bar.fontFamily
+            fontFamily: root.contentFontFamily
             fontSize: Style.font.caption
             onHovered: function(value) { if (value) { root.cursorActive = true; root.actionIndex = 2 } }
             onClicked: root.reassess()
@@ -307,9 +310,9 @@ Panel {
 
         Text {
           width: parent.width
-          text: "c copy // o explorer // r reassess // voluntary compliance remains mandatory"
-          color: Qt.darker(root.bar.foreground, 1.8)
-          font.family: root.bar.fontFamily
+          text: "c copy // o ledger // r reassess // compliance is mandatory"
+          color: Qt.darker(root.contentForeground, 1.8)
+          font.family: root.contentFontFamily
           font.pixelSize: Style.font.caption
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap
@@ -321,11 +324,11 @@ Panel {
   component StatCell: BorderSurface {
     property string label: ""
     property string value: ""
-    property color valueColor: root.bar.foreground
+    property color valueColor: root.contentForeground
 
     implicitHeight: statColumn.implicitHeight + Style.space(14)
-    color: Util.alpha(root.bar.foreground, 0.025)
-    borderSpec: Border.controlSpec("normal", root.bar.foreground, Color.accent)
+    color: Util.alpha(root.contentForeground, 0.025)
+    borderSpec: Border.controlSpec("normal", root.contentForeground, Color.accent)
     radius: 0
 
     Column {
@@ -340,8 +343,8 @@ Panel {
       Text {
         width: parent.width
         text: label
-        color: Qt.darker(root.bar.foreground, 1.8)
-        font.family: root.bar.fontFamily
+        color: Qt.darker(root.contentForeground, 1.8)
+        font.family: root.contentFontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
         elide: Text.ElideRight
@@ -351,7 +354,7 @@ Panel {
         width: parent.width
         text: value
         color: valueColor
-        font.family: root.bar.fontFamily
+        font.family: root.contentFontFamily
         font.pixelSize: Style.font.body
         font.bold: true
         elide: Text.ElideRight

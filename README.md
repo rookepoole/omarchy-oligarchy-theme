@@ -25,6 +25,12 @@ OLIGARCHY has two deliberately separate layers:
 
 Click `TAX` to open a keyboard-friendly collection panel. It shows the verified treasury QR, copies the exact address, opens the public Base ledger, and issues fresh satirical assessments. Right-click copies immediately; middle-click reassesses. No wallet connection, payment request, network fetch, secret, background service, or install hook is involved.
 
+### Native Tax Department — runtime capture
+
+![OLIGARCHY Tax Department running under Quickshell](assets/tax-department-panel.png)
+
+This is a compositor capture of the actual QML plugin loaded with Omarchy's current `Ui` and `Commons` components and the OLIGARCHY theme tokens. The QR was decoded again from this rendered screenshot—not merely from the source asset—and returned the exact treasury address.
+
 ## Pay your taxes to the oligarch
 
 **Network:** Base  

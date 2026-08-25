@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rookepoole.oligarchy-tax-department",
   "name": "Department of Oligarch Revenue",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "author": "Rooke Poole",
   "license": "MIT",
   "description": "A native Tax Department bar widget with a verified Base treasury QR, copy action, assessment generator, and block-explorer shortcut.",
