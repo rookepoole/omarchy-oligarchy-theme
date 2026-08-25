@@ -154,7 +154,7 @@ Add the native operating system layer:
 omarchy plugin add https://github.com/rookepoole/omarchy-oligarchy-theme.git --enable
 bash ~/.config/omarchy/themes/oligarchy/keybinding.sh install
 bash ~/.config/omarchy/themes/oligarchy/launcher-entries.sh install
-omarchy-restart-shell
+reboot
 ```
 
 Omarchy correctly treats plugins as code and shows its normal review warning. The visual theme and executable plugin remain separate approval boundaries even though they share one repository.
@@ -168,7 +168,7 @@ If the theme is already installed, this is the recovery path:
 ```bash
 omarchy theme update
 bash ~/.config/omarchy/themes/oligarchy/install-plugin.sh
-omarchy-restart-shell
+reboot
 ```
 
 If it stops because the plugin directory contains local work or is not a Git checkout, it leaves that directory untouched and reports the exact path.
@@ -205,7 +205,7 @@ bash ~/.config/omarchy/themes/oligarchy/launcher-entries.sh remove
 omarchy theme update
 omarchy theme set oligarchy
 bash ~/.config/omarchy/themes/oligarchy/install-plugin.sh
-omarchy-restart-shell
+reboot
 ```
 
 ## Screensaver integration and restoration
