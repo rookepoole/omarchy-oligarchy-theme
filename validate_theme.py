@@ -161,9 +161,21 @@ def validate_images() -> list[Path]:
     for name, size in expected_sizes.items():
         with Image.open(ROOT / name) as image:
             assert image.size == size, f"unexpected {name} size: {image.size}"
-    for name in ("oligarch-os-acquisitions.png", "oligarch-os-compound.png"):
+    desk_capture_sizes = {
+        "oligarch-os-revenue.png": (595, 393),
+        "oligarch-os-holdings.png": (595, 359),
+        "oligarch-os-privileges.png": (595, 348),
+        "oligarch-os-idle-capital.png": (595, 356),
+        "oligarch-os-acquisitions.png": (595, 381),
+        "oligarch-os-compound.png": (595, 408),
+        "operating-system-tour.gif": (595, 408),
+    }
+    for name, size in desk_capture_sizes.items():
         with Image.open(ROOT / "assets" / name) as image:
-            assert image.size == (595, 415), f"unexpected {name} size: {image.size}"
+            assert image.size == size, f"unexpected {name} size: {image.size}"
+            if name == "operating-system-tour.gif":
+                assert getattr(image, "n_frames", 0) >= 60, "operating-system tour is not meaningfully animated"
+                assert image.info.get("loop") == 0, "operating-system tour must loop"
     return backgrounds
 
 

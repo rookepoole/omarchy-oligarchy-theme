@@ -28,6 +28,8 @@ OLIGARCHY 4.0 is not a wallpaper with matching colors. It turns the desktop into
 
 Click the bar assessment to open six keyboard-friendly desks. Right-click still copies the exact treasury address; middle-click still issues a new assessment. During a focus period the bar becomes a live `ROI·MM:SS` countdown, so the clock stays useful when the panel is closed.
 
+![Six-desk Oligarch Operating System tour](assets/operating-system-tour.gif)
+
 ### 1. Revenue
 
 ![Revenue desk with verified treasury QR](assets/oligarch-os-revenue.png)
