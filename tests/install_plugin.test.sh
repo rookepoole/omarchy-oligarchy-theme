@@ -35,7 +35,7 @@ case "$*" in
     printf 'add\n' >>"$case_root/log"
     plugin_dir="$HOME/.config/omarchy/plugins/rookepoole.oligarchy-tax-department"
     mkdir -p "$plugin_dir/.git"
-    printf '{"version":"4.3.0"}\n' >"$plugin_dir/manifest.json"
+    printf '{"version":"4.3.1"}\n' >"$plugin_dir/manifest.json"
     printf 'enabled\n' >"$case_root/state"
     ;;
   "menu keybindings --print")
