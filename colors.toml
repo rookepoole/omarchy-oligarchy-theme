@@ -1,0 +1,34 @@
+mode = "dark"
+
+# OLIGARCHY — "Elite capital. Public code."
+accent = "#9BD56B"
+selection = "#22301D"
+muted = "#48533F"
+
+background = "#0C0E12"
+dark_background = "#090A0D"
+darker_background = "#060709"
+lighter_background = "#161B17"
+
+foreground = "#E8E2CF"
+dark_foreground = "#837F72"
+light_foreground = "#D4CEBA"
+bright_foreground = "#F7F0D8"
+
+hyprland_active_border = "rgba(9bd56bee) rgba(d2b45bee) 45deg"
+
+red = "#D05C56"
+yellow = "#D2B45B"
+orange = "#C9874B"
+green = "#9BD56B"
+cyan = "#71A9A1"
+blue = "#7186A6"
+magenta = "#A8788F"
+brown = "#8B6B4A"
+
+bright_red = "#E77A72"
+bright_yellow = "#E5CB79"
+bright_green = "#B8EA8B"
+bright_cyan = "#94C6BF"
+bright_blue = "#91A4C2"
+bright_magenta = "#C296AA"
