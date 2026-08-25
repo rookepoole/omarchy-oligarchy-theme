@@ -14,7 +14,7 @@ OLIGARCHY 4.0 is not a wallpaper with matching colors. It turns the desktop into
 | --- | --- | --- |
 | Bar | Live `TAX·nn` assessment ticker | Opening the operating panel; instant copy/reassessment |
 | Revenue desk | Department of Oligarch Revenue | Verified QR, address copy, BaseScan, fresh assessments |
-| Holdings desk | Machine as family-office balance sheet | Live load, memory, disk, uptime, and battery telemetry |
+| Holdings desk | Machine as family-office balance sheet | Live telemetry and a floating-terminal annual report |
 | Privileges desk | System controls renamed for executives | Lock, DND, stay-awake, fullscreen screenshot |
 | Idle Capital desk | Four-scene native screensaver manager | Preview, opt-in default, restore, system branding |
 | Acquisitions desk | Live Hyprland workspaces as portfolio companies | Window counts, current-workspace state, direct switching |
@@ -41,6 +41,8 @@ The Revenue desk keeps the original joke honest: the QR is real, the address is 
 ![Live system holdings desk](assets/oligarch-os-holdings.png)
 
 This is real local system telemetry wearing a ridiculous annual report: one-minute load, memory utilization, root-disk occupancy, uptime, and battery capacity. Nothing is fetched from a network.
+
+**Open Annual Report** carries that joke into a separate terminal surface using Omarchy's supported floating-terminal presentation launcher. It renders the same live local holdings, active Hyprland workspace and window count, the exact treasury authority, and a terminal QR. It changes no state and makes no network request.
 
 ### 3. Executive Privileges
 
@@ -142,9 +144,12 @@ If the theme is already installed, this is the recovery path:
 ```bash
 omarchy theme update
 bash ~/.config/omarchy/themes/oligarchy/install-plugin.sh
+omarchy-restart-shell
 ```
 
 If it stops because the plugin directory contains local work or is not a Git checkout, it leaves that directory untouched and reports the exact path.
+
+The installer rescans and verifies discovery before it reports success, but the running desktop can still retain the previous plugin generation. Restart the shell after an install or update. If that system command does not replace the visible generation, reboot once; that fallback has been confirmed on a real Omarchy installation. The installer deliberately does not restart or reboot the active session for you.
 
 ### Upgrade from 2.x
 
@@ -152,6 +157,7 @@ If it stops because the plugin directory contains local work or is not a Git che
 omarchy theme update
 omarchy theme set oligarchy
 bash ~/.config/omarchy/themes/oligarchy/install-plugin.sh
+omarchy-restart-shell
 ```
 
 ## Screensaver integration and restoration
@@ -204,7 +210,8 @@ The separately approved plugin:
 - never requests a wallet connection, signature, secret, or payment;
 - stores only reversible user state under `~/.local/state/oligarchy/`;
 - backs up branding before changing it and restores the previous bytes;
-- uses fixed system commands rather than interpolating external input.
+- uses fixed system commands rather than interpolating external input;
+- launches its read-only annual report through Omarchy's own floating-terminal helper and reads the existing `TREASURY.txt` authority instead of duplicating the wallet.
 
 Remove the interactive layer without touching the theme:
 
@@ -226,6 +233,7 @@ The active `backgrounds/` directory contains one deterministic wallpaper, `+tax-
 python validate_theme.py
 node tests/model.test.js
 bash tests/install_plugin.test.sh
+bash tests/annual_report.test.sh
 omarchy plugin validate .
 ```
 

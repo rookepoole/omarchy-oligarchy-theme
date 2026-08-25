@@ -61,4 +61,6 @@ jq -e --arg id "$PLUGIN_ID" 'any(.[]; .id == $id and .enabled == true)' \
   <<<"$plugins" >/dev/null 2>&1 || fail "plugin was discovered but did not remain enabled"
 
 printf 'OLIGARCHY %s is installed, discovered, and enabled.\n' "$version"
-printf 'Open the Tax Department from TAX·nn in the bar.\n'
+printf 'Restart the Omarchy shell to load this generation: omarchy-restart-shell\n'
+printf 'If the old generation remains after that, reboot once.\n'
+printf 'Then open the Tax Department from TAX·nn in the bar.\n'

@@ -35,7 +35,7 @@ case "$*" in
     printf 'add\n' >>"$case_root/log"
     plugin_dir="$HOME/.config/omarchy/plugins/rookepoole.oligarchy-tax-department"
     mkdir -p "$plugin_dir/.git"
-    printf '{"version":"4.0.1"}\n' >"$plugin_dir/manifest.json"
+    printf '{"version":"4.1.0"}\n' >"$plugin_dir/manifest.json"
     printf 'enabled\n' >"$case_root/state"
     ;;
   "plugin enable rookepoole.oligarchy-tax-department --section right")
@@ -82,9 +82,11 @@ run_installer() {
 }
 
 absent=$(new_case absent)
-run_installer "$absent" >/dev/null
+absent_output=$(run_installer "$absent")
 grep -qx 'add' "$absent/log"
 grep -qx 'enabled' "$absent/state"
+grep -F 'omarchy-restart-shell' <<<"$absent_output" >/dev/null
+grep -F 'reboot once' <<<"$absent_output" >/dev/null
 
 present=$(new_case present)
 plugin_dir="$present/home/.config/omarchy/plugins/$PLUGIN_ID"
@@ -113,4 +115,4 @@ if run_installer "$old_api" >/dev/null 2>&1; then
 fi
 [[ ! -s $old_api/log ]]
 
-echo "PASS - installer handles add, update, enable, preservation, and old-API refusal"
+echo "PASS - installer handles add, update, enable, lifecycle guidance, preservation, and old-API refusal"

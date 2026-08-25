@@ -115,6 +115,7 @@ def validate_plugin() -> dict[str, object]:
     assert "Quickshell.Hyprland" in qml, "expected native Hyprland workspace integration"
     assert "PORTFOLIOS" in model and "PORTFOLIO COMPANIES" in qml, "expected workspace acquisition desk"
     assert "COMPOUND INTEREST" in qml and "formatFocusTime" in model, "expected focus desk"
+    assert "openAnnualReport" in qml and "omarchy-launch-floating-terminal-with-presentation" in qml, "expected terminal annual report launcher"
     assert 'pageNames: ["REVENUE", "HOLDINGS", "PRIVILEGES", "IDLE CAPITAL", "ACQUISITIONS", "COMPOUND"]' in qml
     for command in (
         "omarchy-system-lock", "omarchy-toggle-notification-silencing",
@@ -141,6 +142,21 @@ def validate_installer() -> None:
     assert "rescanPlugins" in installer, "installer must rescan shell plugins"
     for destructive in ("reset --hard", "plugin remove", "rm -rf"):
         assert destructive not in installer, f"installer must not use destructive recovery: {destructive}"
+
+
+def validate_annual_report() -> None:
+    report_path = ROOT / "annual-report.sh"
+    report = report_path.read_text(encoding="utf-8")
+    assert report.startswith("#!/bin/bash\n"), "annual report must have a Bash shebang"
+    assert "TREASURY.txt" in report, "annual report must read the frozen treasury authority"
+    assert WALLET not in report, "annual report must not duplicate the treasury wallet"
+    for expected in (
+        "CONSOLIDATED ANNUAL REPORT", "CONSOLIDATED HOLDINGS",
+        "PORTFOLIO COMPANIES", "TREASURY AND VOLUNTARY COMPLIANCE", "qrencode",
+    ):
+        assert expected in report, f"annual report missing surface: {expected}"
+    for forbidden in ("curl ", "wget ", "sudo ", "eval ", "rm -", "systemctl "):
+        assert forbidden not in report, f"annual report violates its read-only boundary: {forbidden}"
 
 
 def validate_images() -> list[Path]:
@@ -236,6 +252,7 @@ def main() -> None:
     shell_overrides = validate_shell_overrides()
     manifest = validate_plugin()
     validate_installer()
+    validate_annual_report()
     backgrounds = validate_images()
     validate_wallet_authority()
     decoded, qr_size = validate_qr()

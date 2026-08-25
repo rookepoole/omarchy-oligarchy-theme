@@ -17,7 +17,7 @@ Panel {
   readonly property color contentUrgent: bar ? bar.urgent : Color.urgent
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var pageNames: ["REVENUE", "HOLDINGS", "PRIVILEGES", "IDLE CAPITAL", "ACQUISITIONS", "COMPOUND"]
-  readonly property var pageActionCounts: [3, 1, 4, 4, 5, 5]
+  readonly property var pageActionCounts: [3, 2, 4, 4, 5, 5]
   readonly property var pageComponents: [revenuePage, holdingsPage, privilegesPage, screensaverPage, acquisitionsPage, compoundPage]
 
   property int serial: 1040
@@ -164,6 +164,17 @@ Panel {
     if (!metricsProcess.running) metricsProcess.running = true
   }
 
+  function openAnnualReport() {
+    var reportUrl = Qt.resolvedUrl("annual-report.sh").toString()
+    var reportPath = decodeURIComponent(reportUrl.replace(/^file:\/\//, ""))
+    receipt = "ANNUAL REPORT FILED // UNAUDITED FOREVER"
+    root.close()
+    Quickshell.execDetached([
+      "omarchy-launch-floating-terminal-with-presentation",
+      "bash " + Util.shellQuote(reportPath)
+    ])
+  }
+
   function setPage(index) {
     pageIndex = ((index % pageNames.length) + pageNames.length) % pageNames.length
     actionIndex = 0
@@ -189,8 +200,12 @@ Panel {
       else if (actionIndex === 1) openExplorer()
       else reassess()
     } else if (pageIndex === 1) {
-      refreshMetrics()
-      receipt = "HOLDINGS MARKED TO MARKET"
+      if (actionIndex === 0) {
+        refreshMetrics()
+        receipt = "HOLDINGS MARKED TO MARKET"
+      } else {
+        openAnnualReport()
+      }
     } else if (pageIndex === 2) {
       if (actionIndex === 0) lockEstate()
       else if (actionIndex === 1) toggleSilence()
@@ -221,8 +236,9 @@ Panel {
       if (key === "c") copyAddress()
       else if (key === "o") openExplorer()
       else if (key === "r") reassess()
-    } else if (pageIndex === 1 && key === "r") {
-      refreshMetrics()
+    } else if (pageIndex === 1) {
+      if (key === "r") refreshMetrics()
+      else if (key === "a") openAnnualReport()
     } else if (pageIndex === 2) {
       if (key === "l") lockEstate()
       else if (key === "d") toggleSilence()
@@ -426,7 +442,7 @@ Panel {
         Text {
           width: parent.width
           text: root.pageIndex === 0 ? "1–6 desks // c copy // o ledger // r reassess"
-            : root.pageIndex === 1 ? "real system telemetry // r refresh // no assets were harmed"
+            : root.pageIndex === 1 ? "real system telemetry // r refresh // a annual report"
             : root.pageIndex === 2 ? "l lock // d silence // a stay awake // s screenshot"
             : root.pageIndex === 3 ? "p preview // m make default // x restore // b brand system"
             : root.pageIndex === 4 ? "live Hyprland portfolio // arrows select // Enter acquires"
@@ -527,7 +543,11 @@ Panel {
           Text { width: parent.width * 0.22; text: "SOCIALIZED"; color: root.contentUrgent; font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; font.bold: true; horizontalAlignment: Text.AlignRight }
         }
       }
-      ActionButton { width: parent.width; action: 0; text: "MARK HOLDINGS TO MARKET"; onClicked: { root.refreshMetrics(); root.receipt = "HOLDINGS MARKED TO MARKET" } }
+      Row {
+        width: parent.width; spacing: Style.space(7)
+        ActionButton { width: (parent.width - parent.spacing) / 2; action: 0; text: "MARK TO MARKET"; onClicked: { root.refreshMetrics(); root.receipt = "HOLDINGS MARKED TO MARKET" } }
+        ActionButton { width: (parent.width - parent.spacing) / 2; action: 1; text: "OPEN ANNUAL REPORT"; onClicked: root.openAnnualReport() }
+      }
     }
   }
 
