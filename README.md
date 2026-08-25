@@ -4,32 +4,86 @@
 
 ![OLIGARCHY — Department of Oligarch Revenue](preview.png)
 
-A complete Omarchy Quattro theme **and native shell experience** for the 2026 **Oligarchy** challenge.
+A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-The design language is equal parts financial terminal, government tax notice, 1980s annual report, private banking, and Unix workstation. The joke is loud enough to land and restrained enough to leave the desktop usable.
+OLIGARCHY 3.0 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
-## The Department of Oligarch Revenue is the default
+## The joke now survives contact with the desktop
 
-The active `backgrounds/` directory intentionally contains **one** wallpaper, prefixed with `+` so it sorts ahead of stale numeric backgrounds during manual upgrades:
+| Surface | Oligarchy treatment | Still useful for |
+| --- | --- | --- |
+| Bar | Live `TAX·nn` assessment ticker | Opening the operating panel; instant copy/reassessment |
+| Revenue desk | Department of Oligarch Revenue | Verified QR, address copy, BaseScan, fresh assessments |
+| Holdings desk | Machine as family-office balance sheet | Live load, memory, disk, uptime, and battery telemetry |
+| Privileges desk | System controls renamed for executives | Lock, DND, stay-awake, fullscreen screenshot |
+| Idle Capital desk | Four-scene native screensaver manager | Preview, opt-in default, restore, system branding |
+| Screensaver | Animated wealth extraction in Quickshell | Multi-monitor idle display, activity dismissal, burn-in drift |
+| About + fallback saver | Institutional shareholder propaganda | Reversible Omarchy branding |
+| Launcher, menus, popups, notifications, Polkit, lock | Financial-terminal surface system | Cohesive readable shell chrome |
+| Desktop + unlock | Assessment notice and treasury identity | Deterministic first-run wallpaper and lock art |
 
-`backgrounds/+tax-department.png`
+## Oligarch Operating System
 
-That makes the Department of Oligarch Revenue the first-run OLIGARCHY desktop instead of relying on filename ordering among multiple wallpapers.
+Click the bar assessment to open four keyboard-friendly desks. Right-click still copies the exact treasury address; middle-click still issues a new assessment.
 
-## This is not just a wallpaper pack
+### 1. Revenue
 
-OLIGARCHY has two deliberately separate layers:
+![Revenue desk with verified treasury QR](assets/oligarch-os-revenue.png)
 
-1. A safe Git-installed theme that changes the palette, bar, controls, spacing, typography, popups, tooltips, notifications, launcher, menus, Polkit, lock screen, image picker, keyboard RGB, icons, unlock art, and desktop.
-2. An optional native Quickshell plugin that adds the **Department of Oligarch Revenue** to the Omarchy bar.
+The Revenue desk keeps the original joke honest: the QR is real, the address is exact, and the public ledger is one action away. No wallet connection or payment request exists.
 
-Click `TAX` to open a keyboard-friendly collection panel. It shows the verified treasury QR, copies the exact address, opens the public Base ledger, and issues fresh satirical assessments. Right-click copies immediately; middle-click reassesses. No wallet connection, payment request, network fetch, secret, background service, or install hook is involved.
+### 2. Holdings
 
-### Native Tax Department — runtime capture
+![Live system holdings desk](assets/oligarch-os-holdings.png)
 
-![OLIGARCHY Tax Department running under Quickshell](assets/tax-department-panel.png)
+This is real local system telemetry wearing a ridiculous annual report: one-minute load, memory utilization, root-disk occupancy, uptime, and battery capacity. Nothing is fetched from a network.
 
-This is a compositor capture of the actual QML plugin loaded with Omarchy's current `Ui` and `Commons` components and the OLIGARCHY theme tokens. The QR was decoded again from this rendered screenshot—not merely from the source asset—and returned the exact treasury address.
+### 3. Executive Privileges
+
+![Executive system controls](assets/oligarch-os-privileges.png)
+
+The buttons are jokes; the actions are not:
+
+- **Lock Estate** locks the Omarchy session.
+- **Silence Staff** toggles Do Not Disturb.
+- **Keep Markets Open** toggles stay-awake/idle behavior.
+- **Capture Asset** saves a fullscreen screenshot.
+
+### 4. Private Idle Capital
+
+![Native screensaver management desk](assets/oligarch-os-idle-capital.png)
+
+Preview the suite without changing system state, make it the idle default with one explicit action, restore the original Omarchy behavior, or install matching About/fallback-saver branding.
+
+## Four native animated screensavers
+
+These are live QML scenes, not background images. They render once per output, drift to reduce burn-in, rotate every 15 seconds, honor Omarchy's configured idle time, respect idle inhibitors, and dismiss on activity.
+
+![OLIGARCHY animated screensaver suite](assets/screensaver-suite.gif)
+
+### Trickle-Up Economy
+
+![Trickle-Up Economy screensaver](assets/screensaver-trickle-up.png)
+
+Every coin eventually finds its natural owner. Settlement may take three to five generations.
+
+### The Market Has Spoken
+
+![Market Maker screensaver](assets/screensaver-market-maker.png)
+
+Continuous price discovery for human capital, starter homes, marine deductions, and regulatory capture.
+
+### Shell Company Orbital
+
+![Shell Company Orbital screensaver](assets/screensaver-shell-orbit.png)
+
+Nine disclosure vehicles orbit one beneficial owner who remains tastefully redacted.
+
+### Annual General Meeting
+
+![Board Meeting screensaver](assets/screensaver-board-meeting.png)
+
+Minority shareholders are represented by a decorative chair. The motion still carries 1–0.
 
 ## Pay your taxes to the oligarch
 
@@ -43,65 +97,99 @@ This is a compositor capture of the actual QML plugin loaded with Omarchy's curr
 
 <img src="assets/treasury-qr.png" alt="Verified OLIGARCH treasury QR" width="360">
 
-The standalone QR encodes the exact address and is independently decoded during release validation. It uses high error correction, a six-module quiet zone, and hard pixel edges for reliable scanning.
-
-After installation, copy the treasury address directly to the Wayland clipboard with:
-
-```bash
-wl-copy < ~/.config/omarchy/themes/oligarchy/TREASURY.txt
-```
-
-Or print it with:
-
-```bash
-cat ~/.config/omarchy/themes/oligarchy/TREASURY.txt
-```
+The standalone QR uses high error correction, a six-module quiet zone, and hard pixel edges. Release validation decodes the source asset and the compositor-rendered panel back to the exact address.
 
 No payment is required to use the theme. Voluntary compliance remains mandatory.
 
-## Install the visual theme
+## Install
+
+Install the safe visual theme:
 
 ```bash
 omarchy theme install https://github.com/rookepoole/omarchy-oligarchy-theme.git
 ```
 
-## Add the native Tax Department
-
-Omarchy plugins are code, so Omarchy will show its normal review warning before installation. The plugin is optional and lives in this same public repository:
+Add the native operating system layer:
 
 ```bash
 omarchy plugin add https://github.com/rookepoole/omarchy-oligarchy-theme.git --enable
 ```
 
-Remove the interactive layer at any time without touching the theme:
+Omarchy correctly treats plugins as code and shows its normal review warning. The visual theme and executable plugin remain separate approval boundaries even though they share one repository.
+
+### Upgrade from 2.x
+
+```bash
+omarchy theme update
+omarchy theme set oligarchy
+omarchy plugin update rookepoole.oligarchy-tax-department --yes
+omarchy plugin enable rookepoole.oligarchy-tax-department
+```
+
+## Screensaver integration and restoration
+
+Previewing the suite changes nothing. **Make Idle Default** performs a reversible, user-requested switch:
+
+1. Record whether Omarchy's stock screensaver was already disabled.
+2. Use Omarchy's documented `screensaver-off` state flag so the stock terminal saver does not race the native suite.
+3. Preserve that prior preference under `~/.local/state/oligarchy/`.
+4. Start the native suite at the `idle.screensaver` time already configured in `shell.json`.
+
+**Restore Omarchy** puts the prior screensaver preference back and restores any About/screensaver branding that OLIGARCHY backed up. It does not guess or overwrite an unknown prior state.
+
+Direct controls are also available:
+
+```bash
+omarchy-shell oligarchy-screensaver preview
+omarchy-shell oligarchy-screensaver enable
+omarchy-shell oligarchy-screensaver disable
+omarchy-shell oligarchy-screensaver status
+```
+
+## Keyboard controls
+
+| Input | Result |
+| --- | --- |
+| Left-click `TAX·nn` | Open or close the operating panel |
+| Right-click `TAX·nn` | Copy the exact Base treasury address |
+| Middle-click `TAX·nn` | Issue a fresh assessment |
+| `1`–`4` | Select Revenue, Holdings, Privileges, or Idle Capital |
+| Tab / Shift+Tab | Move between desks |
+| Arrow keys / `h j k l` | Move between actions |
+| Enter / Space | Run the selected action |
+| `c o r` | Copy, open ledger, reassess on Revenue |
+| `l d a s` | Lock, DND, stay awake, screenshot on Privileges |
+| `p m x b` | Preview, make default, restore, brand on Idle Capital |
+| Escape | Close the panel or screensaver |
+
+## Safety boundary
+
+The Git-installed visual layer contains no Lua, terminal launch configuration, symlink, or `vscode.json`, so Omarchy's safe staging path remains visual-only.
+
+The separately approved plugin:
+
+- uses Omarchy's own `Panel`, `KeyboardPanel`, controls, theme tokens, service loader, and `IdleMonitor`;
+- makes no remote request and starts no external daemon;
+- never requests a wallet connection, signature, secret, or payment;
+- stores only reversible user state under `~/.local/state/oligarchy/`;
+- backs up branding before changing it and restores the previous bytes;
+- uses fixed system commands rather than interpolating external input.
+
+Remove the interactive layer without touching the theme:
 
 ```bash
 omarchy plugin remove rookepoole.oligarchy-tax-department
 ```
 
-## Included theme surfaces
+If the custom saver was made default, use **Restore Omarchy** first so the prior idle preference is restored before removal.
 
-OLIGARCHY overrides the current Quattro palette plus the bar, controls, spacing, typography, popups, tooltips, notifications, launcher, menus, Polkit, lock screen, and image picker. It also ships matching unlock art, `Yaru-sage` icons, and shareholder-green keyboard RGB. The plugin uses Omarchy's own `Panel`, `KeyboardPanel`, buttons, borders, spacing, and live theme tokens, so it behaves like part of the shell instead of a separate floating app.
+## Included visual surfaces
 
-The repository deliberately includes no Lua, terminal launcher configs, or `vscode.json`. `omarchy theme install` remains visual-only; the QML runs only when the user separately approves the plugin installation.
+OLIGARCHY overrides the full current Quattro palette plus bar, controls, spacing, typography, popups, tooltips, notifications, launcher, menus, Polkit, lock screen, and image picker. It also ships matching unlock art, `Yaru-sage` icons, and shareholder-green keyboard RGB.
 
-## Controls
-
-| Input | Result |
-| --- | --- |
-| Left-click `TAX` | Open or close the department |
-| Right-click `TAX` | Copy the exact Base treasury address |
-| Middle-click `TAX` | Issue a fresh assessment |
-| `c` | Copy address |
-| `o` | Open the address on BaseScan |
-| `r` | Reassess |
-| Arrow keys / `h j k l` | Move between actions |
-| Enter / Space | Run the selected action |
-| Escape | Close |
+The active `backgrounds/` directory contains one deterministic wallpaper, `+tax-department.png`, so the Department of Oligarch Revenue remains the first-run desktop instead of losing a filename lottery.
 
 ## Validate a release
-
-The validator checks the Omarchy palette, safe-theme denylist, dual-mode plugin manifest, wallet consistency, image dimensions, exact SHA-256 manifest, and QR decode result:
 
 ```bash
 python validate_theme.py
@@ -109,17 +197,7 @@ node tests/model.test.js
 omarchy plugin validate .
 ```
 
-## Gallery
-
-The gallery art is intentionally **not** inside `backgrounds/`, so it cannot replace the Tax Department as the automatic first-run wallpaper.
-
-### Annual Report
-
-![Annual Report](gallery/annual-report.png)
-
-### Hostile Takeover
-
-![Hostile Takeover](gallery/hostile-takeover.png)
+The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points under current Quickshell/Omarchy UI modules, renders every desk and screensaver scene under Wayland, exercises reversible system state, and decodes the QR from the rendered panel.
 
 ## Palette
 

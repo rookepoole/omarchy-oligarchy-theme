@@ -82,10 +82,13 @@ def validate_plugin() -> dict[str, object]:
     assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", manifest["id"])
     assert ".." not in manifest["id"] and not manifest["id"].startswith("omarchy.")
     assert manifest["version"] == (ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert manifest["kinds"] == ["bar-widget"]
+    assert manifest["kinds"] == ["bar-widget", "service"]
     entry = manifest["entryPoints"]["barWidget"]
+    service_entry = manifest["entryPoints"]["service"]
     assert entry == "TaxDepartment.qml"
+    assert service_entry == "OligarchyService.qml"
     assert (ROOT / entry).is_file()
+    assert (ROOT / service_entry).is_file()
     assert manifest["barWidget"]["allowMultiple"] is False
     assert manifest["barWidget"]["defaultSection"] in {"left", "center", "right"}
 
@@ -93,9 +96,25 @@ def validate_plugin() -> dict[str, object]:
     assert not symlinks, f"plugin folder may not contain symlinks: {symlinks}"
 
     qml = (ROOT / entry).read_text(encoding="utf-8")
+    service_qml = (ROOT / service_entry).read_text(encoding="utf-8")
+    saver_qml = (ROOT / "OligarchyScreensaver.qml").read_text(encoding="utf-8")
     model = (ROOT / "TaxModel.js").read_text(encoding="utf-8")
     assert "ShellRoot" not in qml, "plugin entry point must be an Item-derived component"
+    assert "ShellRoot" not in service_qml, "service entry point must be an Item-derived component"
     assert re.search(r"\bPanel\s*\{", qml), "expected native Omarchy Panel root"
+    assert re.search(r"\bItem\s*\{", service_qml), "expected Item-derived service root"
+    assert "IdleMonitor" in service_qml, "expected native idle integration"
+    assert "Variants" in service_qml and "PanelWindow" in service_qml, "expected one screensaver surface per output"
+    assert 'target: "oligarchy-screensaver"' in service_qml, "expected screensaver IPC target"
+    assert saver_qml.count("// Scene ") == 4, "expected four distinct animated screensaver scenes"
+    assert "TAX·" in qml, "expected live assessment in the bar"
+    for command in (
+        "omarchy-system-lock", "omarchy-toggle-notification-silencing",
+        "omarchy-toggle-idle", "omarchy-capture-screenshot",
+    ):
+        assert command in qml, f"missing executive system action: {command}"
+    for path in (ROOT / "branding" / "about.txt", ROOT / "branding" / "screensaver.txt"):
+        assert path.is_file() and path.stat().st_size > 100, f"missing institutional branding: {path.name}"
     assert qml.count(WALLET) == 0, "wallet authority belongs in TaxModel.js only"
     assert model.count(WALLET) == 1, "TaxModel.js must contain one wallet authority"
     assert "https://basescan.org/address/" in qml
@@ -184,7 +203,7 @@ def main() -> None:
     decoded, qr_size = validate_qr()
     checksum_count = validate_checksums()
 
-    print("PASS - OLIGARCHY 2.0 release validates")
+    print("PASS - OLIGARCHY 3.0 release validates")
     print(f"Palette keys: {len(palette)}")
     print(f"Shell surfaces: {shell_overrides}")
     print(f"Backgrounds: {len(backgrounds)} deterministic default")

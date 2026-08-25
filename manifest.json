@@ -2,18 +2,19 @@
   "schemaVersion": 1,
   "id": "rookepoole.oligarchy-tax-department",
   "name": "Department of Oligarch Revenue",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "author": "Rooke Poole",
   "license": "MIT",
-  "description": "A native Tax Department bar widget with a verified Base treasury QR, copy action, assessment generator, and block-explorer shortcut.",
-  "kinds": ["bar-widget"],
+  "description": "A native Oligarch Operating System with treasury collection, live system holdings, executive controls, institutional branding, and a four-scene animated screensaver suite.",
+  "kinds": ["bar-widget", "service"],
   "entryPoints": {
-    "barWidget": "TaxDepartment.qml"
+    "barWidget": "TaxDepartment.qml",
+    "service": "OligarchyService.qml"
   },
   "barWidget": {
     "displayName": "Tax Department",
-    "description": "Voluntary compliance remains mandatory.",
-    "category": "Finance",
+    "description": "Revenue, holdings, privileges, and private idle capital. Voluntary compliance remains mandatory.",
+    "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"
   }
