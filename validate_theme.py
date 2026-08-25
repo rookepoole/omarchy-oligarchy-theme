@@ -164,15 +164,35 @@ def validate_installer() -> None:
     assert 'omarchy plugin enable "$PLUGIN_ID" --section right' in installer
     assert "rescanPlugins" in installer, "installer must rescan shell plugins"
     assert 'bash "$SCRIPT_DIR/keybinding.sh" install' in installer, "installer must provision the global Tax Department binding"
+    assert 'bash "$SCRIPT_DIR/launcher-entries.sh" install' in installer, "installer must provision the Apps-menu integration"
     for destructive in ("reset --hard", "plugin remove", "rm -rf"):
         assert destructive not in installer, f"installer must not use destructive recovery: {destructive}"
 
     keybinding = (ROOT / "keybinding.sh").read_text(encoding="utf-8")
     assert keybinding.startswith("#!/bin/bash\n"), "keybinding manager must have a Bash shebang"
     assert 'CHORD="SUPER + SHIFT + T"' in keybinding
-    assert 'omarchy-shell shell toggle rookepoole.oligarchy-tax-department' in keybinding
+    assert 'PLUGIN_ID="rookepoole.oligarchy-tax-department"' in keybinding
+    assert 'readonly COMMAND="omarchy-shell shell toggle $PLUGIN_ID"' in keybinding, "current Tax command must be argument-free"
     assert "hl.unbind" not in keybinding, "keybinding manager must never unbind an existing action"
     assert "configerrors" in keybinding and "prior bindings file was restored" in keybinding
+    assert "live_bind_records" in keybinding and "live_managed_binding_present" in keybinding
+    assert 'hyprctl eval "$BINDING_LINE"' in keybinding, "live repair fallback must reuse the exact persistent line"
+
+    launcher_manager = (ROOT / "launcher-entries.sh").read_text(encoding="utf-8")
+    assert launcher_manager.startswith("#!/bin/bash\n"), "launcher manager must have a Bash shebang"
+    assert "X-Oligarchy-Managed=true" in launcher_manager
+    assert "is_managed" in launcher_manager and "nothing was changed" in launcher_manager
+    entries = {
+        "oligarchy-tax-department.desktop": "omarchy-shell shell summon rookepoole.oligarchy-tax-department {}",
+        "oligarchy-executive-exit.desktop": "omarchy-shell oligarchy-executive-exit open {}",
+        "oligarchy-pizza-party.desktop": "omarchy-shell oligarchy-screensaver previewScene 4",
+    }
+    for name, command in entries.items():
+        content = (ROOT / "launcher" / name).read_text(encoding="utf-8")
+        assert content.startswith("[Desktop Entry]\n"), f"invalid launcher header: {name}"
+        assert "X-Oligarchy-Managed=true" in content, f"launcher ownership marker missing: {name}"
+        assert f"Exec={command}" in content, f"launcher command drifted: {name}"
+        assert WALLET not in content, f"wallet authority must not be duplicated in launcher metadata: {name}"
 
 
 def validate_annual_report() -> None:

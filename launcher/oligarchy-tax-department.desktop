@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Department of Oligarch Revenue
+GenericName=Tax Department
+Comment=Voluntary compliance remains mandatory.
+Exec=omarchy-shell shell summon rookepoole.oligarchy-tax-department {}
+Icon=accessories-calculator
+Terminal=false
+Categories=Office;
+Keywords=oligarchy;tax;treasury;revenue;base;wallet;
+StartupNotify=false
+X-Oligarchy-Managed=true

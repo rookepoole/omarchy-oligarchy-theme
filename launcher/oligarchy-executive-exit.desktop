@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Executive Exit Committee
+GenericName=Session and Power Motions
+Comment=A quorum of one is present. Disruptive motions require a second vote.
+Exec=omarchy-shell oligarchy-executive-exit open {}
+Icon=system-shutdown
+Terminal=false
+Categories=System;
+Keywords=oligarchy;power;lock;suspend;logout;reboot;shutdown;board;
+StartupNotify=false
+X-Oligarchy-Managed=true

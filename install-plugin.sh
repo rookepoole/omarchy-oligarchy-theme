@@ -65,15 +65,28 @@ binding_installed=no
 if bash "$SCRIPT_DIR/keybinding.sh" install; then
   binding_installed=yes
 else
-  printf 'OLIGARCHY installer: plugin installed, but the global keybind was skipped to preserve an existing assignment.\n' >&2
+  printf 'OLIGARCHY installer: plugin installed, but the global keybind is not verified; keybinding.sh printed the exact conflict or live-state failure.\n' >&2
+fi
+
+launcher_installed=no
+if bash "$SCRIPT_DIR/launcher-entries.sh" install; then
+  launcher_installed=yes
+else
+  printf 'OLIGARCHY installer: plugin installed, but launcher entries were skipped to preserve an existing file.\n' >&2
 fi
 
 printf 'OLIGARCHY %s is installed, discovered, and enabled.\n' "$version"
 if [[ $binding_installed == yes ]]; then
   printf 'Open the Tax Department globally with Super+Shift+T.\n'
 else
-  printf 'Open TAX·nn from the bar, then resolve the reported key conflict before retrying keybinding.sh.\n'
+  printf 'Open TAX·nn from the bar, then run keybinding.sh repair after resolving the reported diagnostic.\n'
+fi
+if [[ $launcher_installed == yes ]]; then
+  printf 'Search Tax Department, Executive Exit Committee, or Pizza Party from the Apps menu.\n'
+else
+  printf 'Resolve the reported desktop-file conflict before retrying launcher-entries.sh.\n'
 fi
 printf 'Restart the Omarchy shell to load this generation: omarchy-restart-shell\n'
 printf 'If the old generation remains after that, reboot once.\n'
-printf 'The plugin opener is: omarchy-shell shell toggle %s "{}"\n' "$PLUGIN_ID"
+printf 'Binding diagnostics: bash %s/keybinding.sh status\n' "$SCRIPT_DIR"
+printf 'The direct plugin opener is: omarchy-shell shell toggle %s\n' "$PLUGIN_ID"

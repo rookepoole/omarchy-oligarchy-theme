@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Mandatory Corporate Pizza Party
+GenericName=Employee Appreciation Event
+Comment=Record profits have been allocated in slices. HR is watching.
+Exec=omarchy-shell oligarchy-screensaver previewScene 4
+Icon=applications-games
+Terminal=false
+Categories=Utility;
+Keywords=oligarchy;pizza;party;morale;screensaver;idle;labor;
+StartupNotify=false
+X-Oligarchy-Managed=true
