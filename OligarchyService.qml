@@ -116,7 +116,7 @@ Item {
     var versionKey = String(manifest.version).replace(/[^A-Za-z0-9._-]+/g, "-")
     welcomeProcess.command = [
       "bash", "-c",
-      "set -e; state=\"$HOME/.local/state/oligarchy\"; marker=\"$state/welcome-$1\"; mkdir -p \"$state\"; [[ -f $marker ]] && exit 0; touch \"$marker\"; omarchy-notification-send 'CONTROLLING INTEREST ACQUIRED' 'Click TAX·nn for Revenue, Holdings, Privileges, and Private Idle Capital' -t 4200",
+      "set -e; state=\"$HOME/.local/state/oligarchy\"; marker=\"$state/welcome-$1\"; mkdir -p \"$state\"; [[ -f $marker ]] && exit 0; touch \"$marker\"; omarchy-notification-send 'CONTROLLING INTEREST ACQUIRED' 'Click TAX·nn for six desks: revenue, holdings, privileges, idle capital, acquisitions, and compound interest' -t 5200",
       "oligarchy-welcome", versionKey
     ]
     welcomeProcess.running = true

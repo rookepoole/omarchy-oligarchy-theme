@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 3.1 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.0 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -17,6 +17,8 @@ OLIGARCHY 3.1 is not a wallpaper with matching colors. It turns the desktop into
 | Holdings desk | Machine as family-office balance sheet | Live load, memory, disk, uptime, and battery telemetry |
 | Privileges desk | System controls renamed for executives | Lock, DND, stay-awake, fullscreen screenshot |
 | Idle Capital desk | Four-scene native screensaver manager | Preview, opt-in default, restore, system branding |
+| Acquisitions desk | Live Hyprland workspaces as portfolio companies | Window counts, current-workspace state, direct switching |
+| Compound desk | Focus/recess clock with hostile-takeover presets | Persistent countdown, progress, sessions, completion notices |
 | Screensaver | Animated wealth extraction in Quickshell | Multi-monitor idle display, activity dismissal, burn-in drift |
 | About + fallback saver | Institutional shareholder propaganda | Reversible Omarchy branding |
 | Launcher, menus, popups, notifications, Polkit, lock | Financial-terminal surface system | Cohesive readable shell chrome |
@@ -24,7 +26,7 @@ OLIGARCHY 3.1 is not a wallpaper with matching colors. It turns the desktop into
 
 ## Oligarch Operating System
 
-Click the bar assessment to open four keyboard-friendly desks. Right-click still copies the exact treasury address; middle-click still issues a new assessment.
+Click the bar assessment to open six keyboard-friendly desks. Right-click still copies the exact treasury address; middle-click still issues a new assessment. During a focus period the bar becomes a live `ROI·MM:SS` countdown, so the clock stays useful when the panel is closed.
 
 ### 1. Revenue
 
@@ -54,6 +56,18 @@ The buttons are jokes; the actions are not:
 ![Native screensaver management desk](assets/oligarch-os-idle-capital.png)
 
 Preview the suite without changing system state, click any numbered scene to launch it directly, make it the idle default with one explicit action, restore the original Omarchy behavior, or install matching About/fallback-saver branding.
+
+### 5. Acquisitions
+
+![Live Hyprland workspaces as portfolio companies](assets/oligarch-os-acquisitions.png)
+
+This is not a fake workspace mockup. It reads Omarchy's native Hyprland workspace model, reports the number of windows in each subsidiary, marks the controlling workspace, and switches directly to the selected company. The shell's five normal workspaces become HOLDCO, MEDIA, LABOR, YACHT, and CAYMAN; empty ones remain tastefully pre-revenue.
+
+### 6. Compound Interest
+
+![Bar-integrated compound-interest focus clock](assets/oligarch-os-compound.png)
+
+Start a 25-minute Hostile Takeover, a 50-minute Mega Merger, or a five-minute Board Recess. The timer keeps running when the panel closes, replaces `TAX·nn` with a live `ROI·MM:SS` bar readout, records completed performance periods, vests a recess after focus maturity, and sends a themed completion notice.
 
 ## Four native animated screensavers
 
@@ -166,13 +180,15 @@ omarchy-shell oligarchy-screensaver status
 | Left-click `TAX·nn` | Open or close the operating panel |
 | Right-click `TAX·nn` | Copy the exact Base treasury address |
 | Middle-click `TAX·nn` | Issue a fresh assessment |
-| `1`–`4` | Select Revenue, Holdings, Privileges, or Idle Capital |
+| `1`–`6` | Select Revenue, Holdings, Privileges, Idle Capital, Acquisitions, or Compound |
 | Tab / Shift+Tab | Move between desks |
 | Arrow keys / `h j k l` | Move between actions |
 | Enter / Space | Run the selected action |
 | `c o r` | Copy, open ledger, reassess on Revenue |
 | `l d a s` | Lock, DND, stay awake, screenshot on Privileges |
 | `p m x b` | Preview, make default, restore, brand on Idle Capital |
+| Arrow keys + Enter | Select and acquire a workspace portfolio company |
+| `s r f l b` | Start/pause, reset, 25m, 50m, or 5m recess on Compound |
 | Escape | Close the panel or screensaver |
 
 ## Safety boundary
@@ -211,7 +227,7 @@ bash tests/install_plugin.test.sh
 omarchy plugin validate .
 ```
 
-The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points under current Quickshell/Omarchy UI modules, renders every desk and screensaver scene under Wayland, exercises reversible system state, and decodes the QR from the rendered panel.
+The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, six-desk interaction coverage, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points under current Quickshell/Omarchy UI modules, renders every desk and screensaver scene under Wayland, proves a workspace dispatch and focus-cycle maturity, exercises reversible system state, and decodes the QR from the rendered panel.
 
 ## Palette
 

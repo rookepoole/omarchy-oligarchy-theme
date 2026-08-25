@@ -35,6 +35,14 @@ var MARKET_ROWS = [
   { symbol: "REG", name: "Regulatory capture", price: "OWNED", change: "+99.9%" }
 ]
 
+var PORTFOLIOS = [
+  { id: 1, symbol: "HOLDCO", name: "Core holding company" },
+  { id: 2, symbol: "MEDIA", name: "Narrative operations" },
+  { id: 3, symbol: "LABOR", name: "Human-capital leasing" },
+  { id: 4, symbol: "YACHT", name: "Marine deductions" },
+  { id: 5, symbol: "CAYMAN", name: "Disclosure services" }
+]
+
 function clampSerial(value) {
   var n = parseInt(String(value), 10)
   if (!isFinite(n) || n < 0) return 0
@@ -97,6 +105,33 @@ function marketRow(index) {
   return MARKET_ROWS[n]
 }
 
+function portfolio(index) {
+  var n = parseInt(String(index), 10)
+  if (!isFinite(n)) n = 0
+  n = ((n % PORTFOLIOS.length) + PORTFOLIOS.length) % PORTFOLIOS.length
+  return PORTFOLIOS[n]
+}
+
+function focusSeconds(value) {
+  var n = Math.floor(Number(value))
+  if (!isFinite(n)) return 0
+  return Math.max(0, Math.min(99 * 60 + 59, n))
+}
+
+function formatFocusTime(value) {
+  var seconds = focusSeconds(value)
+  var minutes = Math.floor(seconds / 60)
+  var remainder = seconds % 60
+  return (minutes < 10 ? "0" : "") + minutes + ":" +
+    (remainder < 10 ? "0" : "") + remainder
+}
+
+function focusProgress(remaining, duration) {
+  var total = focusSeconds(duration)
+  if (total <= 0) return 0
+  return Math.max(0, Math.min(1, 1 - focusSeconds(remaining) / total))
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     WALLET: WALLET,
@@ -108,7 +143,12 @@ if (typeof module !== "undefined") {
     parseMetrics: parseMetrics,
     scene: scene,
     marketRow: marketRow,
+    portfolio: portfolio,
+    focusSeconds: focusSeconds,
+    formatFocusTime: formatFocusTime,
+    focusProgress: focusProgress,
     SCENES: SCENES,
-    MARKET_ROWS: MARKET_ROWS
+    MARKET_ROWS: MARKET_ROWS,
+    PORTFOLIOS: PORTFOLIOS
   }
 }

@@ -111,6 +111,11 @@ def validate_plugin() -> dict[str, object]:
     assert "CONTROLLING INTEREST ACQUIRED" in service_qml, "expected one-time onboarding notice"
     assert saver_qml.count("// Scene ") == 4, "expected four distinct animated screensaver scenes"
     assert "TAX·" in qml, "expected live assessment in the bar"
+    assert "ROI·" in qml and "focusRunning" in qml, "expected bar-integrated focus clock"
+    assert "Quickshell.Hyprland" in qml, "expected native Hyprland workspace integration"
+    assert "PORTFOLIOS" in model and "PORTFOLIO COMPANIES" in qml, "expected workspace acquisition desk"
+    assert "COMPOUND INTEREST" in qml and "formatFocusTime" in model, "expected focus desk"
+    assert 'pageNames: ["REVENUE", "HOLDINGS", "PRIVILEGES", "IDLE CAPITAL", "ACQUISITIONS", "COMPOUND"]' in qml
     for command in (
         "omarchy-system-lock", "omarchy-toggle-notification-silencing",
         "omarchy-toggle-idle", "omarchy-capture-screenshot",
@@ -156,6 +161,9 @@ def validate_images() -> list[Path]:
     for name, size in expected_sizes.items():
         with Image.open(ROOT / name) as image:
             assert image.size == size, f"unexpected {name} size: {image.size}"
+    for name in ("oligarch-os-acquisitions.png", "oligarch-os-compound.png"):
+        with Image.open(ROOT / "assets" / name) as image:
+            assert image.size == (595, 415), f"unexpected {name} size: {image.size}"
     return backgrounds
 
 
