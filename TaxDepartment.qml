@@ -69,14 +69,21 @@ Panel {
     runSystemAction("sleep 0.2; omarchy-capture-screenshot fullscreen save", "SCREEN ASSET CAPITALIZED", true)
   }
 
-  function screensaverCall(method, nextReceipt) {
+  function screensaverCall(method, nextReceipt, argument) {
     receipt = nextReceipt
-    Quickshell.execDetached(["bash", "-c", "omarchy-shell oligarchy-screensaver " + method + " >/dev/null"])
+    var command = ["omarchy-shell", "oligarchy-screensaver", String(method)]
+    if (argument !== undefined && argument !== null) command.push(String(argument))
+    Quickshell.execDetached(command)
   }
 
   function previewScreensaver() {
     root.close()
     screensaverCall("preview", "PRIVATE IDLE CAPITAL PREVIEWED")
+  }
+
+  function previewScreensaverScene(index) {
+    root.close()
+    screensaverCall("previewScene", "SCENE 0" + (index + 1) + " PREVIEWED", index)
   }
 
   function restoreDefaults() {
@@ -467,6 +474,8 @@ Panel {
             width: (parent.width - parent.spacing * 3) / 4
             title: "0" + (index + 1)
             detail: modelData.id.replace(/-/g, " ").toUpperCase()
+            interactive: true
+            onActivated: root.previewScreensaverScene(index)
           }
         }
       }
@@ -515,10 +524,18 @@ Panel {
   component NoticeCell: BorderSurface {
     property string title: ""
     property string detail: ""
+    property bool interactive: false
+    signal activated()
     implicitHeight: noticeColumn.implicitHeight + Style.space(14)
     color: "#080B09"
     borderSpec: Border.controlSpec("normal", root.contentForeground, Color.accent)
     radius: 0
+    MouseArea {
+      anchors.fill: parent
+      enabled: interactive
+      cursorShape: interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onClicked: parent.activated()
+    }
     Column {
       id: noticeColumn
       anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter

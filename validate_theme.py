@@ -16,6 +16,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent
 WALLET = "0xcF84921FCedeC933a9EdF5eAAE66043424a82D38"
 PLUGIN_ID = "rookepoole.oligarchy-tax-department"
+REPO_URL = "https://github.com/rookepoole/omarchy-oligarchy-theme.git"
 
 REQUIRED_COLORS = {
     "mode", "accent", "selection", "muted",
@@ -106,6 +107,8 @@ def validate_plugin() -> dict[str, object]:
     assert "IdleMonitor" in service_qml, "expected native idle integration"
     assert "Variants" in service_qml and "PanelWindow" in service_qml, "expected one screensaver surface per output"
     assert 'target: "oligarchy-screensaver"' in service_qml, "expected screensaver IPC target"
+    assert "function previewScene" in service_qml, "expected direct scene-selection IPC"
+    assert "CONTROLLING INTEREST ACQUIRED" in service_qml, "expected one-time onboarding notice"
     assert saver_qml.count("// Scene ") == 4, "expected four distinct animated screensaver scenes"
     assert "TAX·" in qml, "expected live assessment in the bar"
     for command in (
@@ -119,6 +122,20 @@ def validate_plugin() -> dict[str, object]:
     assert model.count(WALLET) == 1, "TaxModel.js must contain one wallet authority"
     assert "https://basescan.org/address/" in qml
     return manifest
+
+
+def validate_installer() -> None:
+    installer_path = ROOT / "install-plugin.sh"
+    installer = installer_path.read_text(encoding="utf-8")
+    assert installer.startswith("#!/bin/bash\n"), "installer must have a Bash shebang"
+    assert f'PLUGIN_ID="{PLUGIN_ID}"' in installer, "installer plugin id drifted"
+    assert f'REPO_URL="{REPO_URL}"' in installer, "installer repository URL drifted"
+    assert 'omarchy plugin update "$PLUGIN_ID" --yes' in installer
+    assert 'omarchy plugin add "$REPO_URL" --enable --yes' in installer
+    assert 'omarchy plugin enable "$PLUGIN_ID" --section right' in installer
+    assert "rescanPlugins" in installer, "installer must rescan shell plugins"
+    for destructive in ("reset --hard", "plugin remove", "rm -rf"):
+        assert destructive not in installer, f"installer must not use destructive recovery: {destructive}"
 
 
 def validate_images() -> list[Path]:
@@ -198,12 +215,13 @@ def main() -> None:
     validate_safe_theme_surface()
     shell_overrides = validate_shell_overrides()
     manifest = validate_plugin()
+    validate_installer()
     backgrounds = validate_images()
     validate_wallet_authority()
     decoded, qr_size = validate_qr()
     checksum_count = validate_checksums()
 
-    print("PASS - OLIGARCHY 3.0 release validates")
+    print(f"PASS - OLIGARCHY {manifest['version']} release validates")
     print(f"Palette keys: {len(palette)}")
     print(f"Shell surfaces: {shell_overrides}")
     print(f"Backgrounds: {len(backgrounds)} deterministic default")

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rookepoole.oligarchy-tax-department",
   "name": "Department of Oligarch Revenue",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "author": "Rooke Poole",
   "license": "MIT",
   "description": "A native Oligarch Operating System with treasury collection, live system holdings, executive controls, institutional branding, and a four-scene animated screensaver suite.",

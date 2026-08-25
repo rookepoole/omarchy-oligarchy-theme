@@ -25,15 +25,21 @@ Item {
   property double openedAtMs: 0
   property string lastReason: "service-ready"
 
-  function openScreensaver(reason) {
+  function openScene(requestedScene, reason) {
     lastReason = String(reason || "manual")
     manualPreview = lastReason !== "idle"
-    sceneIndex = Math.floor(Date.now() / 1000) % 4
+    var numericScene = Number(requestedScene)
+    if (!isFinite(numericScene)) numericScene = Math.floor(Date.now() / 1000)
+    sceneIndex = ((Math.floor(numericScene) % 4) + 4) % 4
     sceneSerial += 1
     openedAtMs = Date.now()
     active = true
     sceneTimer.restart()
     return "ok"
+  }
+
+  function openScreensaver(reason) {
+    return openScene(Math.floor(Date.now() / 1000), reason)
   }
 
   function closeScreensaver(reason) {
@@ -105,6 +111,19 @@ Item {
     })
   }
 
+  function showWelcomeOnce() {
+    if (welcomeProcess.running || !manifest || !manifest.version) return
+    var versionKey = String(manifest.version).replace(/[^A-Za-z0-9._-]+/g, "-")
+    welcomeProcess.command = [
+      "bash", "-c",
+      "set -e; state=\"$HOME/.local/state/oligarchy\"; marker=\"$state/welcome-$1\"; mkdir -p \"$state\"; [[ -f $marker ]] && exit 0; touch \"$marker\"; omarchy-notification-send 'CONTROLLING INTEREST ACQUIRED' 'Click TAX·nn for Revenue, Holdings, Privileges, and Private Idle Capital' -t 4200",
+      "oligarchy-welcome", versionKey
+    ]
+    welcomeProcess.running = true
+  }
+
+  onManifestChanged: if (manifest) welcomeTimer.restart()
+
   IdleMonitor {
     id: idleMonitor
     enabled: root.customDefaultEnabled
@@ -150,10 +169,22 @@ Item {
     id: brandingManager
   }
 
+  Process {
+    id: welcomeProcess
+  }
+
+  Timer {
+    id: welcomeTimer
+    interval: 450
+    repeat: false
+    onTriggered: root.showWelcomeOnce()
+  }
+
   IpcHandler {
     target: "oligarchy-screensaver"
 
     function preview(): string { return root.openScreensaver("manual") }
+    function previewScene(scene: string): string { return root.openScene(scene, "manual-scene") }
     function dismiss(): string { return root.closeScreensaver("ipc") }
     function next(): string { return root.nextScene() }
     function enable(): string { return root.setDefaultEnabled(true) }
@@ -207,6 +238,9 @@ Item {
     }
   }
 
-  Component.onCompleted: refreshDefaultState()
+  Component.onCompleted: {
+    refreshDefaultState()
+    welcomeTimer.restart()
+  }
   Component.onDestruction: closeScreensaver("service-unloaded")
 }

@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 3.0 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 3.1 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -53,7 +53,7 @@ The buttons are jokes; the actions are not:
 
 ![Native screensaver management desk](assets/oligarch-os-idle-capital.png)
 
-Preview the suite without changing system state, make it the idle default with one explicit action, restore the original Omarchy behavior, or install matching About/fallback-saver branding.
+Preview the suite without changing system state, click any numbered scene to launch it directly, make it the idle default with one explicit action, restore the original Omarchy behavior, or install matching About/fallback-saver branding.
 
 ## Four native animated screensavers
 
@@ -117,13 +117,25 @@ omarchy plugin add https://github.com/rookepoole/omarchy-oligarchy-theme.git --e
 
 Omarchy correctly treats plugins as code and shows its normal review warning. The visual theme and executable plugin remain separate approval boundaries even though they share one repository.
 
+### Install or update without guessing
+
+Installing the visual theme does **not** register the shell plugin. The repository includes a state-aware installer that adds the plugin when it is absent, updates it when it is already present, enables it, and verifies that `omarchy-shell` discovered it. It never force-resets or removes an existing checkout.
+
+If the theme is already installed, this is the recovery path:
+
+```bash
+omarchy theme update
+bash ~/.config/omarchy/themes/oligarchy/install-plugin.sh
+```
+
+If it stops because the plugin directory contains local work or is not a Git checkout, it leaves that directory untouched and reports the exact path.
+
 ### Upgrade from 2.x
 
 ```bash
 omarchy theme update
 omarchy theme set oligarchy
-omarchy plugin update rookepoole.oligarchy-tax-department --yes
-omarchy plugin enable rookepoole.oligarchy-tax-department
+bash ~/.config/omarchy/themes/oligarchy/install-plugin.sh
 ```
 
 ## Screensaver integration and restoration
@@ -141,6 +153,7 @@ Direct controls are also available:
 
 ```bash
 omarchy-shell oligarchy-screensaver preview
+omarchy-shell oligarchy-screensaver previewScene 2
 omarchy-shell oligarchy-screensaver enable
 omarchy-shell oligarchy-screensaver disable
 omarchy-shell oligarchy-screensaver status
@@ -194,6 +207,7 @@ The active `backgrounds/` directory contains one deterministic wallpaper, `+tax-
 ```bash
 python validate_theme.py
 node tests/model.test.js
+bash tests/install_plugin.test.sh
 omarchy plugin validate .
 ```
 
