@@ -1,0 +1,2 @@
+Pillow>=10.0,<13
+opencv-python-headless>=4.8,<5
