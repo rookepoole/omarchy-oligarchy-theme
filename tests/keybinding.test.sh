@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# The fixtures model a fresh user home. Host XDG overrides must not redirect
+# writes back into the developer's live configuration or state directories.
+unset XDG_CONFIG_HOME XDG_STATE_HOME
+
 readonly ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 readonly MANAGER="$ROOT/keybinding.sh"
 readonly TEST_ROOT=$(mktemp -d)
