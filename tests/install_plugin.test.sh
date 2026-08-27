@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Keep the installer's keybinding and launcher side effects inside each mocked
+# home even when the host session exports absolute XDG directories.
+unset XDG_CONFIG_HOME XDG_STATE_HOME XDG_DATA_HOME
+
 readonly ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 readonly INSTALLER="$ROOT/install-plugin.sh"
 readonly PLUGIN_ID="rookepoole.oligarchy-tax-department"
@@ -35,7 +39,7 @@ case "$*" in
     printf 'add\n' >>"$case_root/log"
     plugin_dir="$HOME/.config/omarchy/plugins/rookepoole.oligarchy-tax-department"
     mkdir -p "$plugin_dir/.git"
-    printf '{"version":"4.4.3"}\n' >"$plugin_dir/manifest.json"
+    printf '{"version":"4.4.4"}\n' >"$plugin_dir/manifest.json"
     printf 'enabled\n' >"$case_root/state"
     ;;
   "menu keybindings --print")
