@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 4.4.4 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.4.5 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -142,6 +142,8 @@ No payment is required to use the theme. Voluntary compliance remains mandatory.
 
 ## Install
 
+Runtime requirements are a current Omarchy installation and Python 3. The security helper uses only Python's standard library, runs on demand, starts no daemon, and makes no network request.
+
 Install the safe visual theme:
 
 ```bash
@@ -219,6 +221,8 @@ Previewing the suite changes nothing. **Make Idle Default** performs a reversibl
 
 **Restore Omarchy** puts the prior screensaver preference back and restores any About/screensaver branding that OLIGARCHY backed up. It does not guess or overwrite an unknown prior state.
 
+All state, toggle, welcome, backup, and branding operations go through the fixed-argument `oligarchy-state` helper. It anchors paths in verified user-owned directories, refuses symlinks and non-regular files, bounds every read so a FIFO cannot block the shell, and commits writes with a securely created same-directory temporary file, `fsync`, and atomic replacement. Existing branding and backup sources are opened without following symlinks. If an unsafe or inconsistent path is found, the operation stops and leaves the external target untouched.
+
 Direct controls are also available:
 
 ```bash
@@ -262,6 +266,7 @@ The separately approved plugin:
 - makes no remote request and starts no external daemon;
 - never requests a wallet connection, signature, secret, or payment;
 - stores only reversible user state under `~/.local/state/oligarchy/`;
+- handles state through bounded nonblocking regular-file reads and no-follow, fsynced atomic writes inside verified user-owned directories;
 - installs only three uniquely named launcher files and refuses unowned collisions;
 - backs up branding before changing it and restores the previous bytes;
 - uses fixed system commands rather than interpolating external input;
@@ -297,6 +302,7 @@ Then run the complete gate:
 
 ```bash
 .venv/bin/python validate_theme.py
+python tests/state_safety.test.py
 node tests/model.test.js
 bash tests/keybinding.test.sh
 bash tests/launcher_entries.test.sh
@@ -305,7 +311,7 @@ bash tests/annual_report.test.sh
 omarchy plugin validate .
 ```
 
-The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, keyboard routing, reversible collision-safe global binding and launcher entries, six-desk interaction coverage, the Exit Committee's fixed-command and safe-confirmation boundary, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points and the service-owned Exit Committee under current Quickshell/Omarchy UI modules, renders every desk, exit state, launcher action, and screensaver scene under Wayland, proves confirmation blocks unwanted dispatch, exercises workspace dispatch, focus-cycle maturity, and reversible system state, and decodes the QR from the rendered panel.
+The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, hostile symlink/FIFO state paths, bounded no-follow reads, fsynced atomic writes, keyboard routing, reversible collision-safe global binding and launcher entries, six-desk interaction coverage, the Exit Committee's fixed-command and safe-confirmation boundary, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points and the service-owned Exit Committee under current Quickshell/Omarchy UI modules, renders every desk, exit state, launcher action, and screensaver scene under Wayland, proves confirmation blocks unwanted dispatch, exercises workspace dispatch, focus-cycle maturity, and reversible system state, and decodes the QR from the rendered panel.
 
 ## Palette
 

@@ -13,10 +13,9 @@ Item {
   property string omarchyPath: ""
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string stateDir: home + "/.local/state/oligarchy"
-  readonly property string defaultMarker: stateDir + "/screensaver-managed"
   readonly property int idleSeconds: Math.max(5, Number(shell && shell.shellConfig && shell.shellConfig.idle ? shell.shellConfig.idle.screensaver : 150) || 150)
   readonly property string sourceDir: manifest && manifest.__sourceDir ? String(manifest.__sourceDir) : ""
+  readonly property string stateHelper: sourceDir === "" ? "" : sourceDir + "/oligarchy-state"
 
   property bool active: false
   property bool manualPreview: false
@@ -59,21 +58,20 @@ Item {
   }
 
   function refreshDefaultState() {
+    if (stateHelper === "") {
+      customDefaultEnabled = false
+      return
+    }
     if (!defaultStateProbe.running) defaultStateProbe.running = true
   }
 
   function setDefaultEnabled(value) {
+    if (stateHelper === "") return "missing-source"
     if (defaultManager.running) return "busy"
     if (value) {
-      defaultManager.command = [
-        "bash", "-c",
-        "set -e; state=\"$HOME/.local/state/oligarchy\"; toggles=\"$HOME/.local/state/omarchy/toggles\"; mkdir -p \"$state\" \"$toggles\"; if [[ ! -f \"$state/screensaver-managed\" ]]; then if [[ -f \"$toggles/screensaver-off\" ]]; then printf disabled > \"$state/screensaver-prior\"; else printf enabled > \"$state/screensaver-prior\"; fi; fi; touch \"$state/screensaver-managed\" \"$toggles/screensaver-off\"; omarchy-notification-send 'OLIGARCHY screensaver now manages idle capital' 'Original preference preserved' -t 2400"
-      ]
+      defaultManager.command = [stateHelper, "default-enable"]
     } else {
-      defaultManager.command = [
-        "bash", "-c",
-        "set -e; state=\"$HOME/.local/state/oligarchy\"; toggle=\"$HOME/.local/state/omarchy/toggles/screensaver-off\"; prior=\"\"; [[ -f \"$state/screensaver-prior\" ]] && prior=$(<\"$state/screensaver-prior\"); if [[ $prior == enabled ]]; then rm -f \"$toggle\"; fi; rm -f \"$state/screensaver-managed\" \"$state/screensaver-prior\"; omarchy-notification-send 'Omarchy screensaver restored' 'Idle capital returned to public management' -t 2400"
-      ]
+      defaultManager.command = [stateHelper, "default-disable"]
       closeScreensaver("default-disabled")
     }
     defaultManager.running = true
@@ -83,20 +81,17 @@ Item {
   function installBranding() {
     if (brandingManager.running || sourceDir === "") return sourceDir === "" ? "missing-source" : "busy"
     brandingManager.command = [
-      "bash", "-c",
-      "set -e; state=\"$HOME/.local/state/oligarchy/branding\"; dest=\"$HOME/.config/omarchy/branding\"; mkdir -p \"$state\" \"$dest\"; if [[ ! -e \"$state/managed\" ]]; then if [[ -f \"$dest/about.txt\" ]]; then cp -p \"$dest/about.txt\" \"$state/about.txt.backup\"; else touch \"$state/about.absent\"; fi; if [[ -f \"$dest/screensaver.txt\" ]]; then cp -p \"$dest/screensaver.txt\" \"$state/screensaver.txt.backup\"; else touch \"$state/screensaver.absent\"; fi; fi; cp \"$1\" \"$dest/about.txt\"; cp \"$2\" \"$dest/screensaver.txt\"; touch \"$state/managed\"; omarchy-notification-send 'Institutional branding installed' 'About screen and fallback saver are now shareholder-aligned' -t 2600",
-      "oligarchy-branding", sourceDir + "/branding/about.txt", sourceDir + "/branding/screensaver.txt"
+      stateHelper, "branding-install",
+      sourceDir + "/branding/about.txt", sourceDir + "/branding/screensaver.txt"
     ]
     brandingManager.running = true
     return "ok"
   }
 
   function restoreBranding() {
+    if (stateHelper === "") return "missing-source"
     if (brandingManager.running) return "busy"
-    brandingManager.command = [
-      "bash", "-c",
-      "set -e; state=\"$HOME/.local/state/oligarchy/branding\"; dest=\"$HOME/.config/omarchy/branding\"; mkdir -p \"$dest\"; if [[ -f \"$state/about.txt.backup\" ]]; then cp -p \"$state/about.txt.backup\" \"$dest/about.txt\"; elif [[ -f \"$state/about.absent\" ]]; then rm -f \"$dest/about.txt\"; fi; if [[ -f \"$state/screensaver.txt.backup\" ]]; then cp -p \"$state/screensaver.txt.backup\" \"$dest/screensaver.txt\"; elif [[ -f \"$state/screensaver.absent\" ]]; then rm -f \"$dest/screensaver.txt\"; fi; rm -f \"$state/managed\" \"$state/about.txt.backup\" \"$state/screensaver.txt.backup\" \"$state/about.absent\" \"$state/screensaver.absent\"; omarchy-notification-send 'Original branding restored' 'The board denies this ever happened' -t 2400"
-    ]
+    brandingManager.command = [stateHelper, "branding-restore"]
     brandingManager.running = true
     return "ok"
   }
@@ -115,11 +110,7 @@ Item {
   function showWelcomeOnce() {
     if (welcomeProcess.running || !manifest || !manifest.version) return
     var versionKey = String(manifest.version).replace(/[^A-Za-z0-9._-]+/g, "-")
-    welcomeProcess.command = [
-      "bash", "-c",
-      "set -e; state=\"$HOME/.local/state/oligarchy\"; marker=\"$state/welcome-$1\"; mkdir -p \"$state\"; [[ -f $marker ]] && exit 0; touch \"$marker\"; omarchy-notification-send 'CONTROLLING INTEREST ACQUIRED' 'Click TAX·nn for six desks: revenue, holdings, privileges, idle capital, acquisitions, and compound interest' -t 5200",
-      "oligarchy-welcome", versionKey
-    ]
+    welcomeProcess.command = [stateHelper, "welcome", versionKey]
     welcomeProcess.running = true
   }
 
@@ -154,7 +145,7 @@ Item {
 
   Process {
     id: defaultStateProbe
-    command: ["bash", "-c", "[[ -f $HOME/.local/state/oligarchy/screensaver-managed ]] && printf yes || printf no"]
+    command: root.stateHelper === "" ? [] : [root.stateHelper, "default-status"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.customDefaultEnabled = String(text || "").trim() === "yes"

@@ -100,6 +100,8 @@ def validate_plugin() -> dict[str, object]:
     qml = (ROOT / entry).read_text(encoding="utf-8")
     overlay_qml = (ROOT / "ExecutiveExit.qml").read_text(encoding="utf-8")
     service_qml = (ROOT / service_entry).read_text(encoding="utf-8")
+    state_helper_path = ROOT / "oligarchy-state"
+    state_helper = state_helper_path.read_text(encoding="utf-8")
     key_catcher_qml = (ROOT / "OligarchyKeyCatcher.qml").read_text(encoding="utf-8")
     saver_qml = (ROOT / "OligarchyScreensaver.qml").read_text(encoding="utf-8")
     model = (ROOT / "TaxModel.js").read_text(encoding="utf-8")
@@ -115,7 +117,18 @@ def validate_plugin() -> dict[str, object]:
     assert re.search(r"\bExecutiveExit\s*\{", service_qml), "service must own the exit overlay"
     assert "function request(actionId: string)" in service_qml, "exit IPC must preserve the confirmation-request boundary"
     assert "function previewScene" in service_qml, "expected direct scene-selection IPC"
-    assert "CONTROLLING INTEREST ACQUIRED" in service_qml, "expected one-time onboarding notice"
+    assert "CONTROLLING INTEREST ACQUIRED" in state_helper, "expected one-time onboarding notice"
+    assert state_helper_path.stat().st_mode & 0o111, "state helper must be executable"
+    assert state_helper.startswith("#!/usr/bin/env python3\n"), "state helper must use Python 3"
+    for primitive in ("O_NOFOLLOW", "O_NONBLOCK", "S_ISREG", "O_EXCL", "os.fsync", "os.replace"):
+        assert primitive in state_helper, f"state helper missing safety primitive: {primitive}"
+    for command in (
+        "default-status", "default-enable", "default-disable",
+        "branding-install", "branding-restore", "welcome",
+    ):
+        assert f'"{command}"' in service_qml, f"service missing fixed state-helper command: {command}"
+    for forbidden in ('"bash"', '"-c"', "$(<", "touch "):
+        assert forbidden not in service_qml, f"service must not perform shell file operations: {forbidden}"
     assert saver_qml.count("// Scene ") == 5, "expected five distinct animated screensaver scenes"
     assert "CORPORATE PIZZA PARTY" in model and "MANDATORY ATTENDANCE" in saver_qml, "expected native corporate pizza party scene"
     assert "TAX·" in qml, "expected live assessment in the bar"

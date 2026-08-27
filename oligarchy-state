@@ -1,0 +1,460 @@
+#!/usr/bin/env python3
+"""Safely manage OLIGARCHY's reversible per-user state.
+
+All mutable paths are opened relative to verified directory descriptors. Reads
+are nonblocking, bounded, and restricted to regular files. Writes use a
+securely created same-directory temporary file, fsync, and atomic replacement.
+"""
+
+from __future__ import annotations
+
+import fcntl
+import os
+import re
+import secrets
+import stat
+import subprocess
+import sys
+import time
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Iterator
+
+
+MAX_STATE_BYTES = 64
+MAX_BRANDING_BYTES = 1024 * 1024
+LOCK_TIMEOUT_SECONDS = 0.5
+VERSION_RE = re.compile(r"[A-Za-z0-9._-]{1,128}\Z")
+DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW
+READ_FLAGS = os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC | os.O_NOFOLLOW
+
+
+class UnsafeState(RuntimeError):
+    """Raised when a state path cannot be handled without following links."""
+
+
+def _check_directory(fd: int, label: str) -> None:
+    info = os.fstat(fd)
+    if not stat.S_ISDIR(info.st_mode):
+        raise UnsafeState(f"{label} is not a directory")
+    if info.st_uid != os.getuid():
+        raise UnsafeState(f"{label} is not owned by the current user")
+    if info.st_mode & 0o022:
+        raise UnsafeState(f"{label} is writable by another account")
+
+
+def _open_directory(parts: tuple[str, ...], *, create: bool) -> int | None:
+    home = os.environ.get("HOME", "")
+    if not home or not os.path.isabs(home):
+        raise UnsafeState("HOME must be an absolute path")
+    try:
+        fd = os.open(home, DIR_FLAGS)
+    except OSError as exc:
+        raise UnsafeState(f"HOME is not a safe directory: {exc.strerror}") from exc
+    try:
+        _check_directory(fd, "HOME")
+        for part in parts:
+            if not part or part in {".", ".."} or "/" in part:
+                raise UnsafeState("invalid state directory component")
+            try:
+                next_fd = os.open(part, DIR_FLAGS, dir_fd=fd)
+            except FileNotFoundError:
+                if not create:
+                    os.close(fd)
+                    return None
+                try:
+                    os.mkdir(part, 0o700, dir_fd=fd)
+                    os.fsync(fd)
+                    next_fd = os.open(part, DIR_FLAGS, dir_fd=fd)
+                except OSError as exc:
+                    raise UnsafeState(f"cannot securely create {part}: {exc.strerror}") from exc
+            except OSError as exc:
+                raise UnsafeState(f"unsafe directory component {part}: {exc.strerror}") from exc
+            os.close(fd)
+            fd = next_fd
+            _check_directory(fd, part)
+        return fd
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+
+
+@contextmanager
+def secure_directory(parts: tuple[str, ...], *, create: bool = True) -> Iterator[int | None]:
+    fd = _open_directory(parts, create=create)
+    try:
+        yield fd
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def _entry_info(fd: int, name: str) -> os.stat_result | None:
+    try:
+        return os.stat(name, dir_fd=fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise UnsafeState(f"cannot inspect {name}: {exc.strerror}") from exc
+
+
+def _require_regular(info: os.stat_result, name: str) -> None:
+    if not stat.S_ISREG(info.st_mode):
+        raise UnsafeState(f"{name} is not a regular file")
+    if info.st_uid != os.getuid():
+        raise UnsafeState(f"{name} is not owned by the current user")
+
+
+def regular_exists(fd: int, name: str) -> bool:
+    info = _entry_info(fd, name)
+    if info is None:
+        return False
+    _require_regular(info, name)
+    return True
+
+
+def marker_exists(fd: int, name: str) -> bool:
+    if _entry_info(fd, name) is None:
+        return False
+    data, _mode = read_regular(fd, name, 0)
+    if data:
+        raise UnsafeState(f"{name} is not an empty marker")
+    return True
+
+
+def read_regular(fd: int, name: str, limit: int) -> tuple[bytes, int]:
+    try:
+        file_fd = os.open(name, READ_FLAGS, dir_fd=fd)
+    except OSError as exc:
+        raise UnsafeState(f"cannot safely read {name}: {exc.strerror}") from exc
+    try:
+        info = os.fstat(file_fd)
+        _require_regular(info, name)
+        if info.st_size > limit:
+            raise UnsafeState(f"{name} exceeds the {limit}-byte limit")
+        chunks: list[bytes] = []
+        remaining = limit + 1
+        while remaining:
+            chunk = os.read(file_fd, min(65536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        data = b"".join(chunks)
+        if len(data) > limit:
+            raise UnsafeState(f"{name} exceeds the {limit}-byte limit")
+        return data, stat.S_IMODE(info.st_mode)
+    finally:
+        os.close(file_fd)
+
+
+def read_source(path: str, limit: int) -> tuple[bytes, int]:
+    source = Path(path)
+    if not source.is_absolute():
+        raise UnsafeState("branding source must be absolute")
+    try:
+        fd = os.open(source, READ_FLAGS)
+    except OSError as exc:
+        raise UnsafeState(f"cannot safely read branding source {source.name}: {exc.strerror}") from exc
+    try:
+        info = os.fstat(fd)
+        _require_regular(info, source.name)
+        if info.st_size > limit:
+            raise UnsafeState(f"branding source {source.name} exceeds the size limit")
+        data = b""
+        while len(data) <= limit:
+            chunk = os.read(fd, min(65536, limit + 1 - len(data)))
+            if not chunk:
+                break
+            data += chunk
+        if len(data) > limit:
+            raise UnsafeState(f"branding source {source.name} exceeds the size limit")
+        return data, stat.S_IMODE(info.st_mode)
+    finally:
+        os.close(fd)
+
+
+def atomic_write(fd: int, name: str, data: bytes, mode: int = 0o600) -> None:
+    existing = _entry_info(fd, name)
+    if existing is not None:
+        _require_regular(existing, name)
+
+    temp_name = f".{name}.tmp-{os.getpid()}-{secrets.token_hex(8)}"
+    temp_fd: int | None = None
+    try:
+        temp_fd = os.open(
+            temp_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+            mode & 0o777,
+            dir_fd=fd,
+        )
+        view = memoryview(data)
+        while view:
+            written = os.write(temp_fd, view)
+            if written <= 0:
+                raise UnsafeState(f"short write while creating {name}")
+            view = view[written:]
+        os.fchmod(temp_fd, mode & 0o777)
+        os.fsync(temp_fd)
+        os.close(temp_fd)
+        temp_fd = None
+
+        existing = _entry_info(fd, name)
+        if existing is not None:
+            _require_regular(existing, name)
+        os.replace(temp_name, name, src_dir_fd=fd, dst_dir_fd=fd)
+        os.fsync(fd)
+    except OSError as exc:
+        raise UnsafeState(f"cannot atomically write {name}: {exc.strerror}") from exc
+    finally:
+        if temp_fd is not None:
+            os.close(temp_fd)
+        try:
+            os.unlink(temp_name, dir_fd=fd)
+        except FileNotFoundError:
+            pass
+
+
+def create_marker(fd: int, name: str) -> None:
+    if marker_exists(fd, name):
+        return
+    atomic_write(fd, name, b"", 0o600)
+
+
+def remove_regular(fd: int, name: str) -> None:
+    info = _entry_info(fd, name)
+    if info is None:
+        return
+    _require_regular(info, name)
+    try:
+        os.unlink(name, dir_fd=fd)
+        os.fsync(fd)
+    except OSError as exc:
+        raise UnsafeState(f"cannot remove {name}: {exc.strerror}") from exc
+
+
+@contextmanager
+def operation_lock(state_fd: int) -> Iterator[None]:
+    name = ".operation.lock"
+    try:
+        lock_fd = os.open(
+            name,
+            os.O_RDWR | os.O_CREAT | os.O_NONBLOCK | os.O_CLOEXEC | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=state_fd,
+        )
+    except OSError as exc:
+        raise UnsafeState(f"cannot safely open operation lock: {exc.strerror}") from exc
+    try:
+        _require_regular(os.fstat(lock_fd), name)
+        deadline = time.monotonic() + LOCK_TIMEOUT_SECONDS
+        while True:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError as exc:
+                if time.monotonic() >= deadline:
+                    raise UnsafeState("another state operation did not release its lock") from exc
+                time.sleep(0.025)
+        yield
+    finally:
+        os.close(lock_fd)
+
+
+def notify(title: str, body: str, timeout: int) -> None:
+    try:
+        subprocess.run(
+            ["omarchy-notification-send", title, body, "-t", str(timeout)],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        pass
+
+
+def default_status() -> None:
+    with secure_directory((".local", "state", "oligarchy"), create=False) as state_fd:
+        if state_fd is None:
+            print("no")
+            return
+        print("yes" if marker_exists(state_fd, "screensaver-managed") else "no")
+
+
+def default_enable() -> None:
+    with secure_directory((".local", "state", "oligarchy")) as state_fd, secure_directory(
+        (".local", "state", "omarchy", "toggles")
+    ) as toggles_fd:
+        assert state_fd is not None and toggles_fd is not None
+        with operation_lock(state_fd):
+            managed = marker_exists(state_fd, "screensaver-managed")
+            prior_exists = regular_exists(state_fd, "screensaver-prior")
+            if managed and not prior_exists:
+                raise UnsafeState("managed screensaver state has no prior-preference record")
+            if not prior_exists:
+                prior = b"disabled" if regular_exists(toggles_fd, "screensaver-off") else b"enabled"
+                atomic_write(state_fd, "screensaver-prior", prior, 0o600)
+            else:
+                prior, _ = read_regular(state_fd, "screensaver-prior", MAX_STATE_BYTES)
+                if prior not in {b"enabled", b"disabled"}:
+                    raise UnsafeState("screensaver-prior has an invalid value")
+            if not regular_exists(toggles_fd, "screensaver-off"):
+                atomic_write(toggles_fd, "screensaver-off", b"", 0o600)
+            create_marker(state_fd, "screensaver-managed")
+    notify(
+        "OLIGARCHY screensaver now manages idle capital",
+        "Original preference preserved",
+        2400,
+    )
+
+
+def default_disable() -> None:
+    with secure_directory((".local", "state", "oligarchy")) as state_fd, secure_directory(
+        (".local", "state", "omarchy", "toggles")
+    ) as toggles_fd:
+        assert state_fd is not None and toggles_fd is not None
+        with operation_lock(state_fd):
+            managed = marker_exists(state_fd, "screensaver-managed")
+            prior_exists = regular_exists(state_fd, "screensaver-prior")
+            if managed and not prior_exists:
+                raise UnsafeState("managed screensaver state has no prior-preference record")
+            if prior_exists:
+                prior, _ = read_regular(state_fd, "screensaver-prior", MAX_STATE_BYTES)
+                if prior not in {b"enabled", b"disabled"}:
+                    raise UnsafeState("screensaver-prior has an invalid value")
+                if prior == b"enabled":
+                    remove_regular(toggles_fd, "screensaver-off")
+            remove_regular(state_fd, "screensaver-managed")
+            remove_regular(state_fd, "screensaver-prior")
+    notify(
+        "Omarchy screensaver restored",
+        "Idle capital returned to public management",
+        2400,
+    )
+
+
+BRANDING_FILES = ("about.txt", "screensaver.txt")
+
+
+def _capture_branding(state_fd: int, dest_fd: int, name: str) -> None:
+    backup = f"{name}.backup"
+    absent = f"{name.removesuffix('.txt')}.absent"
+    has_backup = regular_exists(state_fd, backup)
+    has_absent = marker_exists(state_fd, absent)
+    if has_backup and has_absent:
+        raise UnsafeState(f"conflicting prior-state records for {name}")
+    if has_backup:
+        read_regular(state_fd, backup, MAX_BRANDING_BYTES)
+        return
+    if has_absent:
+        return
+    if regular_exists(dest_fd, name):
+        data, mode = read_regular(dest_fd, name, MAX_BRANDING_BYTES)
+        atomic_write(state_fd, backup, data, mode)
+    else:
+        create_marker(state_fd, absent)
+
+
+def branding_install(about_source: str, screensaver_source: str) -> None:
+    sources = {
+        "about.txt": read_source(about_source, MAX_BRANDING_BYTES),
+        "screensaver.txt": read_source(screensaver_source, MAX_BRANDING_BYTES),
+    }
+    with secure_directory((".local", "state", "oligarchy")) as root_state_fd, secure_directory(
+        (".local", "state", "oligarchy", "branding")
+    ) as state_fd, secure_directory((".config", "omarchy", "branding")) as dest_fd:
+        assert root_state_fd is not None and state_fd is not None and dest_fd is not None
+        with operation_lock(root_state_fd):
+            marker_exists(state_fd, "managed")
+            for name in BRANDING_FILES:
+                _capture_branding(state_fd, dest_fd, name)
+            for name, (data, _source_mode) in sources.items():
+                atomic_write(dest_fd, name, data, 0o600)
+            create_marker(state_fd, "managed")
+    notify(
+        "Institutional branding installed",
+        "About screen and fallback saver are now shareholder-aligned",
+        2600,
+    )
+
+
+def branding_restore() -> None:
+    with secure_directory((".local", "state", "oligarchy")) as root_state_fd, secure_directory(
+        (".local", "state", "oligarchy", "branding")
+    ) as state_fd, secure_directory((".config", "omarchy", "branding")) as dest_fd:
+        assert root_state_fd is not None and state_fd is not None and dest_fd is not None
+        with operation_lock(root_state_fd):
+            marker_exists(state_fd, "managed")
+            for name in BRANDING_FILES:
+                backup = f"{name}.backup"
+                absent = f"{name.removesuffix('.txt')}.absent"
+                has_backup = regular_exists(state_fd, backup)
+                has_absent = marker_exists(state_fd, absent)
+                if has_backup and has_absent:
+                    raise UnsafeState(f"conflicting prior-state records for {name}")
+                if has_backup:
+                    data, mode = read_regular(state_fd, backup, MAX_BRANDING_BYTES)
+                    atomic_write(dest_fd, name, data, mode)
+                elif has_absent:
+                    remove_regular(dest_fd, name)
+            for name in (
+                "managed",
+                "about.txt.backup",
+                "screensaver.txt.backup",
+                "about.absent",
+                "screensaver.absent",
+            ):
+                remove_regular(state_fd, name)
+    notify("Original branding restored", "The board denies this ever happened", 2400)
+
+
+def welcome(version: str) -> None:
+    if not VERSION_RE.fullmatch(version):
+        raise UnsafeState("invalid welcome version")
+    marker = f"welcome-{version}"
+    should_notify = False
+    with secure_directory((".local", "state", "oligarchy")) as state_fd:
+        assert state_fd is not None
+        with operation_lock(state_fd):
+            if not marker_exists(state_fd, marker):
+                create_marker(state_fd, marker)
+                should_notify = True
+    if should_notify:
+        notify(
+            "CONTROLLING INTEREST ACQUIRED",
+            "Click TAX·nn for six desks: revenue, holdings, privileges, idle capital, acquisitions, and compound interest",
+            5200,
+        )
+
+
+def main(argv: list[str]) -> int:
+    try:
+        command = argv[1] if len(argv) > 1 else ""
+        args = argv[2:]
+        if command == "default-status" and not args:
+            default_status()
+        elif command == "default-enable" and not args:
+            default_enable()
+        elif command == "default-disable" and not args:
+            default_disable()
+        elif command == "branding-install" and len(args) == 2:
+            branding_install(args[0], args[1])
+        elif command == "branding-restore" and not args:
+            branding_restore()
+        elif command == "welcome" and len(args) == 1:
+            welcome(args[0])
+        else:
+            print("usage: oligarchy-state {default-status|default-enable|default-disable|branding-install|branding-restore|welcome}", file=sys.stderr)
+            return 2
+        return 0
+    except (UnsafeState, OSError) as exc:
+        print(f"oligarchy-state: refusing unsafe state: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))
