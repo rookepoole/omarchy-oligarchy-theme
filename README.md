@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 4.4.3 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.4.4 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -286,8 +286,17 @@ The active `backgrounds/` directory contains one deterministic wallpaper, `+tax-
 
 ## Validate a release
 
+Create an isolated release environment and install the validator's declared image/QR dependencies:
+
 ```bash
-python validate_theme.py
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements-release.txt
+```
+
+Then run the complete gate:
+
+```bash
+.venv/bin/python validate_theme.py
 node tests/model.test.js
 bash tests/keybinding.test.sh
 bash tests/launcher_entries.test.sh
