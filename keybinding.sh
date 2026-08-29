@@ -7,6 +7,8 @@
 set -euo pipefail
 
 readonly ACTION="${1:-install}"
+readonly SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+readonly STATE_HELPER="$SCRIPT_DIR/oligarchy-state"
 readonly CHORD="SUPER + SHIFT + T"
 readonly DESCRIPTION="Tax Department"
 readonly PLUGIN_ID="rookepoole.oligarchy-tax-department"
@@ -17,15 +19,40 @@ readonly LEGACY_START_MARKER="# >>> OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
 readonly LEGACY_END_MARKER="# <<< OLIGARCHY TAX DEPARTMENT KEYBIND (managed)"
 readonly BINDING_LINE="o.bind(\"$CHORD\", \"$DESCRIPTION\", \"$COMMAND\")"
 readonly LEGACY_BINDING_LINE="o.bind(\"$CHORD\", \"$DESCRIPTION\", \"$COMMAND '{}'\")"
-readonly CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
-readonly BINDINGS_FILE="$CONFIG_HOME/hypr/bindings.lua"
 readonly STATE_DIR="$STATE_HOME/oligarchy/keybinding"
 readonly ERROR_LOG="$STATE_DIR/last-config-error.txt"
+readonly BINDINGS_FILE=$(mktemp)
+EXPECTED_BINDINGS=""
+
+cleanup() {
+  rm -f -- "$BINDINGS_FILE"
+}
+trap cleanup EXIT
 
 fail() {
   printf 'OLIGARCHY keybind: %s\n' "$*" >&2
   exit 1
+}
+
+stage_bindings() {
+  local status
+  chmod 0600 -- "$BINDINGS_FILE"
+  if "$STATE_HELPER" keybinding-read >"$BINDINGS_FILE"; then
+    EXPECTED_BINDINGS=$(sha256sum "$BINDINGS_FILE")
+    EXPECTED_BINDINGS=${EXPECTED_BINDINGS%% *}
+    return 0
+  else
+    status=$?
+  fi
+  [[ $status == 3 ]] || fail "bindings.lua could not be read through the safe no-follow helper"
+  : >"$BINDINGS_FILE"
+  EXPECTED_BINDINGS=absent
+}
+
+commit_staged_bindings() {
+  "$STATE_HELPER" keybinding-commit "$EXPECTED_BINDINGS" "$BINDINGS_FILE" ||
+    fail "bindings.lua changed or became unsafe before the atomic commit; nothing was written"
 }
 
 marker_count() {
@@ -192,8 +219,9 @@ preflight_live_config() {
 }
 
 restore_prior_file() {
-  local backup="$1" existed="$2"
-  if [[ $existed == yes ]]; then cp -p -- "$backup" "$BINDINGS_FILE"; else rm -f -- "$BINDINGS_FILE"; fi
+  local backup="$1"
+  "$STATE_HELPER" keybinding-restore "$backup" ||
+    fail "the prior bindings file could not be restored through the safe no-follow helper"
   hyprctl reload >/dev/null 2>&1 || true
 }
 
@@ -207,31 +235,36 @@ wait_for_live_binding() {
 }
 
 activate_and_verify_live_binding() {
-  local backup="$1" existed="$2" errors summary
+  local backup errors summary diagnostic
+  backup=$(commit_staged_bindings)
   live_session_available || {
     printf 'OLIGARCHY keybind: persistent binding installed; no live Hyprland session was available to verify.\n'
     return 0
   }
 
   if ! hyprctl reload >/dev/null 2>&1; then
-    restore_prior_file "$backup" "$existed"
+    restore_prior_file "$backup"
     fail "Hyprland rejected the reload; the prior bindings file was restored"
   fi
   errors=$(hyprctl configerrors 2>/dev/null || true)
   if [[ -n $errors ]]; then
-    mkdir -p -- "$STATE_DIR"
-    printf '%s\n' "$errors" >"$ERROR_LOG"
+    diagnostic="$ERROR_LOG"
+    if ! printf '%s\n' "$errors" | "$STATE_HELPER" keybinding-log; then
+      diagnostic="unavailable because the diagnostic path was unsafe"
+    fi
     summary=${errors//$'\n'/ | }
-    restore_prior_file "$backup" "$existed"
-    fail "the binding introduced a Hyprland config error: $summary; the prior bindings file was restored; full diagnostic: $ERROR_LOG"
+    restore_prior_file "$backup"
+    fail "the binding introduced a Hyprland config error: $summary; the prior bindings file was restored; full diagnostic: $diagnostic"
   fi
   wait_for_live_binding && {
     printf 'OLIGARCHY keybind: live Hyprland resolved %s -> %s.\n' "$CHORD" "$DESCRIPTION"
     return 0
   }
 
-  live_chord_has_other_owner &&
-    fail "$CHORD resolved to another live action after reload; OLIGARCHY did not overwrite it"
+  if live_chord_has_other_owner; then
+    restore_prior_file "$backup"
+    fail "$CHORD resolved to another live action after reload; the prior bindings file was restored"
+  fi
 
   # Some Hyprland Lua builds have registered-but-inert reload regressions. The
   # persistent source remains authoritative; eval activates the same owned line
@@ -241,14 +274,8 @@ activate_and_verify_live_binding() {
     return 0
   fi
 
-  fail "persistent binding is installed but absent from Hyprland's live bind table; run '$0 status' and reboot once"
-}
-
-backup_bindings() {
-  mkdir -p -- "$STATE_DIR"
-  local backup="$STATE_DIR/bindings.lua.$(date +%s%N).bak"
-  if [[ -f $BINDINGS_FILE ]]; then cp -p -- "$BINDINGS_FILE" "$backup"; else : >"$backup"; fi
-  printf '%s\n' "$backup"
+  restore_prior_file "$backup"
+  fail "persistent binding was absent from Hyprland's live bind table; the prior bindings file was restored"
 }
 
 prepend_current_managed_block() {
@@ -301,7 +328,7 @@ adopt_known_orphan_binding() {
 }
 
 install_binding() {
-  local starts ends backup existed=no orphan_count chord_count marker_style
+  local starts ends orphan_count chord_count marker_style
   starts=$(( $(marker_count "$START_MARKER") + $(marker_count "$LEGACY_START_MARKER") ))
   ends=$(( $(marker_count "$END_MARKER") + $(marker_count "$LEGACY_END_MARKER") ))
 
@@ -309,8 +336,6 @@ install_binding() {
     managed_block_shape_is_valid || fail "managed markers are incomplete or edited; refusing to guess"
     marker_style=$(managed_marker_style)
     [[ $marker_style == current ]] && preflight_live_config
-    [[ -f $BINDINGS_FILE ]] && existed=yes
-    backup=$(backup_bindings)
     if managed_block_is_current; then
       printf 'OLIGARCHY keybind: persistent %s binding is current; normalizing its safe module position.\n' "$CHORD"
     elif [[ $marker_style == legacy ]]; then
@@ -319,7 +344,7 @@ install_binding() {
       printf 'OLIGARCHY keybind: migrated the owned binding to the current command.\n'
     fi
     normalize_managed_block_to_top
-    activate_and_verify_live_binding "$backup" "$existed"
+    activate_and_verify_live_binding
     return 0
   fi
 
@@ -329,11 +354,9 @@ install_binding() {
     (( orphan_count == 1 && chord_count == 1 )) ||
       fail "$CHORD has multiple source claims; no line was adopted or overwritten"
     preflight_live_config
-    existed=yes
-    backup=$(backup_bindings)
     adopt_known_orphan_binding
     printf 'OLIGARCHY keybind: adopted the earlier unmarked OLIGARCHY binding into the managed block.\n'
-    activate_and_verify_live_binding "$backup" "$existed"
+    activate_and_verify_live_binding
     return 0
   fi
 
@@ -345,16 +368,12 @@ install_binding() {
   fi
 
   preflight_live_config
-  [[ -f $BINDINGS_FILE ]] && existed=yes
-  backup=$(backup_bindings)
-  mkdir -p -- "$(dirname -- "$BINDINGS_FILE")"
-  touch -- "$BINDINGS_FILE"
   prepend_current_managed_block "$BINDINGS_FILE"
-  activate_and_verify_live_binding "$backup" "$existed"
+  activate_and_verify_live_binding
 }
 
 remove_binding() {
-  local starts ends backup existed=yes temporary start finish
+  local starts ends backup temporary start finish
   starts=$(( $(marker_count "$START_MARKER") + $(marker_count "$LEGACY_START_MARKER") ))
   ends=$(( $(marker_count "$END_MARKER") + $(marker_count "$LEGACY_END_MARKER") ))
   if [[ $starts == 0 && $ends == 0 ]]; then
@@ -364,7 +383,6 @@ remove_binding() {
   managed_block_shape_is_valid || fail "managed markers are incomplete or edited; refusing to guess"
 
   preflight_live_config
-  backup=$(backup_bindings)
   temporary=$(mktemp "${BINDINGS_FILE}.oligarchy.XXXXXX")
   start=$(managed_start_marker)
   finish=$(managed_end_marker)
@@ -377,9 +395,11 @@ remove_binding() {
   chmod --reference="$BINDINGS_FILE" "$temporary" 2>/dev/null || true
   mv -- "$temporary" "$BINDINGS_FILE"
 
+  backup=$(commit_staged_bindings)
+
   if live_session_available; then
     if ! hyprctl reload >/dev/null 2>&1 || [[ -n $(hyprctl configerrors 2>/dev/null || true) ]]; then
-      restore_prior_file "$backup" "$existed"
+      restore_prior_file "$backup"
       fail "Hyprland rejected removal; the prior bindings file was restored"
     fi
   fi
@@ -426,6 +446,8 @@ status_binding() {
   printf 'live: no | run install to repair, then reboot once if still absent\n'
   return 1
 }
+
+stage_bindings
 
 case "$ACTION" in
   install|repair) install_binding ;;

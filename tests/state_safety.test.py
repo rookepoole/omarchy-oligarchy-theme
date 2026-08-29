@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import os
 import subprocess
 import tempfile
@@ -32,6 +33,8 @@ class StateSafetyTests(unittest.TestCase):
         self.env = os.environ.copy()
         self.env["HOME"] = str(self.home)
         self.env["PATH"] = f"{self.bin}:{self.env.get('PATH', '')}"
+        for name in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME"):
+            self.env.pop(name, None)
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -150,8 +153,8 @@ class StateSafetyTests(unittest.TestCase):
         self.assertFalse((self.branding_dest / "screensaver.txt").exists())
 
     def test_welcome_marker_is_once_per_version(self) -> None:
-        self.run_helper("welcome", "4.4.5")
-        self.run_helper("welcome", "4.4.5")
+        self.run_helper("welcome", "4.4.6")
+        self.run_helper("welcome", "4.4.6")
         notifications = (self.home / "notifications").read_text(encoding="utf-8").splitlines()
         self.assertEqual(notifications.count("CONTROLLING INTEREST ACQUIRED"), 1)
 
@@ -169,11 +172,11 @@ class StateSafetyTests(unittest.TestCase):
         lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
         try:
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            result = self.run_helper("welcome", "4.4.5", ok=False, timeout=1.25)
+            result = self.run_helper("welcome", "4.4.6", ok=False, timeout=1.25)
             self.assertIn("did not release its lock", result.stderr)
         finally:
             os.close(lock_fd)
-        self.assertFalse((self.state / "welcome-4.4.5").exists())
+        self.assertFalse((self.state / "welcome-4.4.6").exists())
 
     def test_final_symlinks_are_rejected_and_external_file_is_unchanged(self) -> None:
         sentinel = self.case / "sentinel"
@@ -185,8 +188,8 @@ class StateSafetyTests(unittest.TestCase):
         self.assertEqual(sentinel.read_bytes(), b"do not alter")
 
         (self.state / "screensaver-prior").unlink()
-        (self.state / "welcome-4.4.5").symlink_to(sentinel)
-        self.run_helper("welcome", "4.4.5", ok=False)
+        (self.state / "welcome-4.4.6").symlink_to(sentinel)
+        self.run_helper("welcome", "4.4.6", ok=False)
         self.assertEqual(sentinel.read_bytes(), b"do not alter")
 
         (self.state / "screensaver-managed").symlink_to(sentinel)
@@ -238,6 +241,104 @@ class StateSafetyTests(unittest.TestCase):
         (local_state / "oligarchy").symlink_to(external, target_is_directory=True)
         self.run_helper("default-enable", ok=False)
         self.assertEqual(list(external.iterdir()), [])
+
+    def test_keybinding_commit_rejects_a_changed_snapshot(self) -> None:
+        config = self.home / ".config/hypr"
+        config.mkdir(parents=True)
+        target = config / "bindings.lua"
+        target.write_bytes(b"-- original\n")
+        expected = hashlib.sha256(target.read_bytes()).hexdigest()
+        stage = self.case / "stage.lua"
+        stage.write_bytes(b"-- candidate\n")
+
+        target.write_bytes(b"-- concurrent user edit\n")
+        self.run_helper("keybinding-commit", expected, str(stage), ok=False)
+        self.assertEqual(target.read_bytes(), b"-- concurrent user edit\n")
+
+    def test_keybinding_restore_refuses_a_swapped_backup_symlink(self) -> None:
+        config = self.home / ".config/hypr"
+        config.mkdir(parents=True)
+        target = config / "bindings.lua"
+        target.write_bytes(b"-- current\n")
+        state = self.home / ".local/state/oligarchy/keybinding"
+        state.mkdir(parents=True)
+        sentinel = self.case / "sentinel"
+        sentinel.write_bytes(b"external\n")
+        token = "bindings.lua.1-0123456789abcdef.bak"
+        (state / token).symlink_to(sentinel)
+        (state / f"{token}.applied").write_bytes(
+            hashlib.sha256(target.read_bytes()).hexdigest().encode()
+        )
+        (state / f"{token}.prior").write_bytes(
+            hashlib.sha256(sentinel.read_bytes()).hexdigest().encode()
+        )
+
+        self.run_helper("keybinding-restore", token, ok=False)
+        self.assertEqual(target.read_bytes(), b"-- current\n")
+        self.assertEqual(sentinel.read_bytes(), b"external\n")
+
+    def test_keybinding_restore_refuses_a_swapped_regular_backup(self) -> None:
+        config = self.home / ".config/hypr"
+        config.mkdir(parents=True)
+        target = config / "bindings.lua"
+        target.write_bytes(b"-- original\n")
+        expected = hashlib.sha256(target.read_bytes()).hexdigest()
+        stage = self.case / "stage.lua"
+        stage.write_bytes(b"-- candidate\n")
+
+        token = self.run_helper("keybinding-commit", expected, str(stage)).stdout.strip()
+        backup = self.home / ".local/state/oligarchy/keybinding" / token
+        backup.unlink()
+        backup.write_bytes(b"-- attacker replacement\n")
+
+        self.run_helper("keybinding-restore", token, ok=False)
+        self.assertEqual(target.read_bytes(), b"-- candidate\n")
+
+    def test_installer_commands_support_absolute_xdg_roots_outside_home(self) -> None:
+        config_root = self.case / "external-config"
+        state_root = self.case / "external-state"
+        data_root = self.case / "external-data"
+        for root in (config_root, state_root, data_root):
+            root.mkdir(mode=0o700)
+        self.env.update(
+            {
+                "XDG_CONFIG_HOME": str(config_root),
+                "XDG_STATE_HOME": str(state_root),
+                "XDG_DATA_HOME": str(data_root),
+            }
+        )
+        stage = self.case / "stage.lua"
+        stage.write_bytes(b"-- candidate\n")
+
+        token = self.run_helper("keybinding-commit", "absent", str(stage)).stdout.strip()
+        self.assertEqual((config_root / "hypr/bindings.lua").read_bytes(), b"-- candidate\n")
+        self.run_helper("keybinding-restore", token)
+        self.assertFalse((config_root / "hypr/bindings.lua").exists())
+
+        self.run_helper("launcher-install")
+        for name in (
+            "oligarchy-tax-department.desktop",
+            "oligarchy-executive-exit.desktop",
+            "oligarchy-pizza-party.desktop",
+        ):
+            self.assertTrue((data_root / "applications" / name).is_file())
+        self.assertTrue((state_root / "oligarchy/.operation.lock").is_file())
+        self.run_helper("launcher-remove")
+
+    def test_keybinding_restore_preserves_a_newer_concurrent_edit(self) -> None:
+        config = self.home / ".config/hypr"
+        config.mkdir(parents=True)
+        target = config / "bindings.lua"
+        target.write_bytes(b"-- original\n")
+        expected = hashlib.sha256(target.read_bytes()).hexdigest()
+        stage = self.case / "stage.lua"
+        stage.write_bytes(b"-- candidate\n")
+
+        token = self.run_helper("keybinding-commit", expected, str(stage)).stdout.strip()
+        self.assertEqual(target.read_bytes(), b"-- candidate\n")
+        target.write_bytes(b"-- newer user edit\n")
+        self.run_helper("keybinding-restore", token, ok=False)
+        self.assertEqual(target.read_bytes(), b"-- newer user edit\n")
 
     def test_invalid_prior_value_and_temp_cleanup(self) -> None:
         self.state.mkdir(parents=True)

@@ -6,7 +6,7 @@
 
 A complete Omarchy Quattro theme and native shell experience for the 2026 **Oligarchy** challenge.
 
-OLIGARCHY 4.4.5 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
+OLIGARCHY 4.4.6 is not a wallpaper with matching colors. It turns the desktop into a usable financial terminal, tax office, family office, executive panic room, portfolio manager, focus clock, and animated monument to capital allocation—while leaving Omarchy's real system behavior intact.
 
 ## The joke now survives contact with the desktop
 
@@ -189,13 +189,13 @@ It uses Omarchy's stable shell-level plugin route, so the panel opens on the foc
 bash ~/.config/omarchy/themes/oligarchy/keybinding.sh remove
 ```
 
-The installer verifies the exact materialized Lua block and Hyprland's resolved live table, not just the command text. It safely migrates the earlier shell-style markers and unmarked command, places the block before a legal module-level `return`, and repairs a reload-only miss in the current session. Inspect both persistent and live state at any time with:
+The installer verifies the exact materialized Lua block and Hyprland's resolved live table, not just the command text. It safely migrates the earlier shell-style markers and unmarked command, places the block before a legal module-level `return`, and repairs a reload-only miss in the current session. The target is read through a bounded `O_NONBLOCK | O_NOFOLLOW` snapshot, committed only if its digest is still current, and written atomically through a verified directory descriptor. Backups, rollback, and the config-error diagnostic use the same no-follow path handling. Rollback authenticates both the applied file and prior backup by SHA-256 and refuses to overwrite a newer user edit or restore substituted backup bytes. Inspect both persistent and live state at any time with:
 
 ```bash
 bash ~/.config/omarchy/themes/oligarchy/keybinding.sh status
 ```
 
-It also installs the three managed Apps-menu entries described above. Remove them without touching any other `.desktop` file:
+It also installs the three managed Apps-menu entries described above. All three packaged sources and existing destinations are read as bounded regular files without following links. Installation and removal validate every ownership marker before changing anything, use same-directory atomic replacement, and roll back already-applied entries if a later operation fails. Remove them without touching any other `.desktop` file:
 
 ```bash
 bash ~/.config/omarchy/themes/oligarchy/launcher-entries.sh remove
@@ -221,7 +221,7 @@ Previewing the suite changes nothing. **Make Idle Default** performs a reversibl
 
 **Restore Omarchy** puts the prior screensaver preference back and restores any About/screensaver branding that OLIGARCHY backed up. It does not guess or overwrite an unknown prior state.
 
-All state, toggle, welcome, backup, and branding operations go through the fixed-argument `oligarchy-state` helper. It anchors paths in verified user-owned directories, refuses symlinks and non-regular files, bounds every read so a FIFO cannot block the shell, and commits writes with a securely created same-directory temporary file, `fsync`, and atomic replacement. Existing branding and backup sources are opened without following symlinks. If an unsafe or inconsistent path is found, the operation stops and leaves the external target untouched.
+All state, toggle, welcome, backup, branding, keybinding, diagnostic, rollback, and launcher operations go through the fixed-argument `oligarchy-state` helper. It anchors paths in verified user-owned directories, including absolute XDG roots outside `HOME`, refuses symlinks and non-regular files, bounds every read so a FIFO cannot block the shell, and commits writes with a securely created same-directory temporary file, `fsync`, and atomic replacement. Existing targets, packaged sources, and backup sources are opened through directory descriptors without following symlinks. Keybinding commits additionally compare the safe snapshot digest immediately before mutation. If an unsafe, changed, or inconsistent path is found, the operation stops and leaves the external target untouched.
 
 Direct controls are also available:
 
@@ -266,8 +266,9 @@ The separately approved plugin:
 - makes no remote request and starts no external daemon;
 - never requests a wallet connection, signature, secret, or payment;
 - stores only reversible user state under `~/.local/state/oligarchy/`;
-- handles state through bounded nonblocking regular-file reads and no-follow, fsynced atomic writes inside verified user-owned directories;
-- installs only three uniquely named launcher files and refuses unowned collisions;
+- handles runtime and installer state through bounded nonblocking regular-file reads and no-follow, fsynced atomic writes inside verified user-owned directories;
+- commits keybinding changes against a safe snapshot digest and performs backup, rollback, and diagnostic writes through the same helper;
+- installs only three uniquely named launcher files, refuses links and unowned collisions, and rolls back partial launcher operations;
 - backs up branding before changing it and restores the previous bytes;
 - uses fixed system commands rather than interpolating external input;
 - launches its read-only annual report through Omarchy's own floating-terminal helper and reads the existing `TREASURY.txt` authority instead of duplicating the wallet;
@@ -311,7 +312,7 @@ bash tests/annual_report.test.sh
 omarchy plugin validate .
 ```
 
-The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, hostile symlink/FIFO state paths, bounded no-follow reads, fsynced atomic writes, keyboard routing, reversible collision-safe global binding and launcher entries, six-desk interaction coverage, the Exit Committee's fixed-command and safe-confirmation boundary, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points and the service-owned Exit Committee under current Quickshell/Omarchy UI modules, renders every desk, exit state, launcher action, and screensaver scene under Wayland, proves confirmation blocks unwanted dispatch, exercises workspace dispatch, focus-cycle maturity, and reversible system state, and decodes the QR from the rendered panel.
+The release gate checks palette and shell coverage, Git-theme safety, manifest and service contracts, hostile runtime and installer symlink/FIFO paths, concurrent keybinding changes, swapped backups, bounded no-follow reads, fsynced atomic writes, safe parent directories, rollback behavior, keyboard routing, reversible collision-safe global binding and launcher entries, six-desk interaction coverage, the Exit Committee's fixed-command and safe-confirmation boundary, native workspace and focus-clock contracts, multi-output screensaver structure, wallet authority, image dimensions, QR decoding, branding assets, and the exact SHA-256 manifest. Runtime verification additionally loads both plugin entry points and the service-owned Exit Committee under current Quickshell/Omarchy UI modules, renders every desk, exit state, launcher action, and screensaver scene under Wayland, proves confirmation blocks unwanted dispatch, exercises workspace dispatch, focus-cycle maturity, and reversible system state, and decodes the QR from the rendered panel.
 
 ## Palette
 

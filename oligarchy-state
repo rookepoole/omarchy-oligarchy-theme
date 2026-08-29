@@ -9,6 +9,7 @@ securely created same-directory temporary file, fsync, and atomic replacement.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import os
 import re
 import secrets
@@ -23,10 +24,21 @@ from typing import Iterator
 
 MAX_STATE_BYTES = 64
 MAX_BRANDING_BYTES = 1024 * 1024
+MAX_BINDINGS_BYTES = 1024 * 1024
+MAX_LAUNCHER_BYTES = 64 * 1024
+MAX_ERROR_BYTES = 64 * 1024
 LOCK_TIMEOUT_SECONDS = 0.5
 VERSION_RE = re.compile(r"[A-Za-z0-9._-]{1,128}\Z")
+BACKUP_RE = re.compile(r"bindings\.lua\.[0-9]+-[0-9a-f]{16}\.(?:bak|absent)\Z")
 DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW
 READ_FLAGS = os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC | os.O_NOFOLLOW
+LAUNCHER_FILES = (
+    "oligarchy-tax-department.desktop",
+    "oligarchy-executive-exit.desktop",
+    "oligarchy-pizza-party.desktop",
+)
+LAUNCHER_MARKER = b"X-Oligarchy-Managed=true"
+_UNCHECKED = object()
 
 
 class UnsafeState(RuntimeError):
@@ -177,10 +189,159 @@ def read_source(path: str, limit: int) -> tuple[bytes, int]:
         os.close(fd)
 
 
-def atomic_write(fd: int, name: str, data: bytes, mode: int = 0o600) -> None:
+def read_stdin(limit: int) -> bytes:
+    data = b""
+    while len(data) <= limit:
+        chunk = os.read(sys.stdin.fileno(), min(65536, limit + 1 - len(data)))
+        if not chunk:
+            break
+        data += chunk
+    if len(data) > limit:
+        raise UnsafeState(f"standard input exceeds the {limit}-byte limit")
+    return data
+
+
+def _absolute_xdg_path(path: str, label: str) -> str:
+    home = os.environ.get("HOME", "")
+    if not home or not os.path.isabs(home):
+        raise UnsafeState("HOME must be an absolute path")
+    if not os.path.isabs(path):
+        raise UnsafeState(f"{label} must be an absolute path")
+    candidate = os.path.abspath(path)
+    parts = Path(candidate).parts[1:]
+    if not parts or any(not part or part in {".", ".."} or "/" in part for part in parts):
+        raise UnsafeState(f"{label} contains an unsafe path component")
+    return candidate
+
+
+def _xdg_directory(env_name: str, default: str, suffix: tuple[str, ...]) -> str:
+    home = os.environ.get("HOME", "")
+    base = os.environ.get(env_name) or os.path.join(home, default)
+    return _absolute_xdg_path(os.path.join(base, *suffix), env_name)
+
+
+def _keybinding_directory() -> str:
+    return _xdg_directory("XDG_CONFIG_HOME", ".config", ("hypr",))
+
+
+def _keybinding_state_directory() -> str:
+    return _xdg_directory("XDG_STATE_HOME", ".local/state", ("oligarchy", "keybinding"))
+
+
+def _installer_state_directory() -> str:
+    return _xdg_directory("XDG_STATE_HOME", ".local/state", ("oligarchy",))
+
+
+def _launcher_directory() -> str:
+    return _xdg_directory("XDG_DATA_HOME", ".local/share", ("applications",))
+
+
+def _digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _managed_launcher(data: bytes) -> bool:
+    return LAUNCHER_MARKER in data.splitlines()
+
+
+def _check_absolute_ancestor(fd: int, label: str, *, final: bool) -> None:
+    info = os.fstat(fd)
+    if not stat.S_ISDIR(info.st_mode):
+        raise UnsafeState(f"{label} is not a directory")
+    if final:
+        _check_directory(fd, label)
+        return
+    # UID 65534 is how the managed test sandbox exposes its immutable
+    # root-owned filesystem ancestors. Final XDG directories never receive
+    # this exception: they must still be owned by the invoking user.
+    trusted_system_owners = {0, 65534}
+    if info.st_uid not in trusted_system_owners | {os.getuid()}:
+        raise UnsafeState(f"{label} has an untrusted owner")
+    writable = info.st_mode & 0o022
+    sticky_root = info.st_uid in trusted_system_owners and bool(info.st_mode & stat.S_ISVTX)
+    if writable and not sticky_root:
+        raise UnsafeState(f"{label} is writable by another account")
+
+
+def _open_absolute_directory(path: str, *, create: bool) -> int | None:
+    if not os.path.isabs(path):
+        raise UnsafeState("configured XDG path must be absolute")
+    parts = Path(os.path.abspath(path)).parts[1:]
+    fd = os.open("/", DIR_FLAGS)
+    try:
+        _check_absolute_ancestor(fd, "/", final=False)
+        traversed = ""
+        for index, part in enumerate(parts):
+            traversed = f"{traversed}/{part}"
+            try:
+                next_fd = os.open(part, DIR_FLAGS, dir_fd=fd)
+            except FileNotFoundError:
+                if not create:
+                    os.close(fd)
+                    return None
+                _check_directory(fd, os.path.dirname(traversed) or "/")
+                try:
+                    os.mkdir(part, 0o700, dir_fd=fd)
+                    os.fsync(fd)
+                    next_fd = os.open(part, DIR_FLAGS, dir_fd=fd)
+                except OSError as exc:
+                    raise UnsafeState(f"cannot securely create {traversed}: {exc.strerror}") from exc
+            except OSError as exc:
+                raise UnsafeState(f"unsafe directory component {traversed}: {exc.strerror}") from exc
+            os.close(fd)
+            fd = next_fd
+            _check_absolute_ancestor(fd, traversed, final=index == len(parts) - 1)
+        return fd
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+
+
+@contextmanager
+def secure_absolute_directory(path: str, *, create: bool = True) -> Iterator[int | None]:
+    fd = _open_absolute_directory(path, create=create)
+    try:
+        yield fd
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def _verify_expected_entry(
+    fd: int,
+    name: str,
+    expected: bytes | None | object,
+) -> None:
     existing = _entry_info(fd, name)
-    if existing is not None:
-        _require_regular(existing, name)
+    if expected is _UNCHECKED:
+        if existing is not None:
+            _require_regular(existing, name)
+        return
+    if expected is None:
+        if existing is not None:
+            _require_regular(existing, name)
+            raise UnsafeState(f"{name} appeared or changed before commit")
+        return
+    assert isinstance(expected, bytes)
+    if existing is None:
+        raise UnsafeState(f"{name} disappeared before commit")
+    current, _mode = read_regular(fd, name, len(expected))
+    if current != expected:
+        raise UnsafeState(f"{name} changed before commit")
+
+
+def atomic_write(
+    fd: int,
+    name: str,
+    data: bytes,
+    mode: int = 0o600,
+    *,
+    expected: bytes | None | object = _UNCHECKED,
+) -> None:
+    _verify_expected_entry(fd, name, expected)
 
     temp_name = f".{name}.tmp-{os.getpid()}-{secrets.token_hex(8)}"
     temp_fd: int | None = None
@@ -202,9 +363,7 @@ def atomic_write(fd: int, name: str, data: bytes, mode: int = 0o600) -> None:
         os.close(temp_fd)
         temp_fd = None
 
-        existing = _entry_info(fd, name)
-        if existing is not None:
-            _require_regular(existing, name)
+        _verify_expected_entry(fd, name, expected)
         os.replace(temp_name, name, src_dir_fd=fd, dst_dir_fd=fd)
         os.fsync(fd)
     except OSError as exc:
@@ -224,7 +383,14 @@ def create_marker(fd: int, name: str) -> None:
     atomic_write(fd, name, b"", 0o600)
 
 
-def remove_regular(fd: int, name: str) -> None:
+def remove_regular(
+    fd: int,
+    name: str,
+    *,
+    expected: bytes | None | object = _UNCHECKED,
+) -> None:
+    if expected is not _UNCHECKED:
+        _verify_expected_entry(fd, name, expected)
     info = _entry_info(fd, name)
     if info is None:
         return
@@ -262,6 +428,221 @@ def operation_lock(state_fd: int) -> Iterator[None]:
         yield
     finally:
         os.close(lock_fd)
+
+
+def keybinding_read() -> bool:
+    with secure_absolute_directory(_keybinding_directory(), create=False) as config_fd:
+        if config_fd is None or _entry_info(config_fd, "bindings.lua") is None:
+            return False
+        data, _mode = read_regular(config_fd, "bindings.lua", MAX_BINDINGS_BYTES)
+        if b"\0" in data:
+            raise UnsafeState("bindings.lua contains a NUL byte")
+        sys.stdout.buffer.write(data)
+        return True
+
+
+def _verify_expected_binding(config_fd: int, expected: str) -> tuple[bytes, int] | None:
+    info = _entry_info(config_fd, "bindings.lua")
+    if expected == "absent":
+        if info is not None:
+            _require_regular(info, "bindings.lua")
+            raise UnsafeState("bindings.lua changed after the safe snapshot")
+        return None
+    if not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise UnsafeState("invalid bindings.lua snapshot digest")
+    if info is None:
+        raise UnsafeState("bindings.lua disappeared after the safe snapshot")
+    data, mode = read_regular(config_fd, "bindings.lua", MAX_BINDINGS_BYTES)
+    if _digest(data) != expected:
+        raise UnsafeState("bindings.lua changed after the safe snapshot")
+    return data, mode
+
+
+def keybinding_commit(expected: str, staged_path: str) -> None:
+    staged, _staged_mode = read_source(staged_path, MAX_BINDINGS_BYTES)
+    if b"\0" in staged:
+        raise UnsafeState("staged bindings.lua contains a NUL byte")
+    token_root = f"bindings.lua.{time.time_ns()}-{secrets.token_hex(8)}"
+    with secure_absolute_directory(_keybinding_directory()) as config_fd, secure_absolute_directory(
+        _keybinding_state_directory()
+    ) as state_fd:
+        assert config_fd is not None and state_fd is not None
+        with operation_lock(state_fd):
+            prior = _verify_expected_binding(config_fd, expected)
+            if prior is None:
+                token = f"{token_root}.absent"
+                atomic_write(state_fd, token, b"", 0o600, expected=None)
+                target_mode = 0o644
+                prior_data = None
+            else:
+                prior_data, prior_mode = prior
+                token = f"{token_root}.bak"
+                atomic_write(state_fd, token, prior_data, prior_mode, expected=None)
+                atomic_write(
+                    state_fd,
+                    f"{token}.prior",
+                    _digest(prior_data).encode(),
+                    0o600,
+                    expected=None,
+                )
+                target_mode = prior_mode
+            atomic_write(state_fd, f"{token}.applied", _digest(staged).encode(), 0o600, expected=None)
+            atomic_write(
+                config_fd,
+                "bindings.lua",
+                staged,
+                target_mode,
+                expected=prior_data,
+            )
+    print(token)
+
+
+def keybinding_restore(token: str) -> None:
+    if not BACKUP_RE.fullmatch(token):
+        raise UnsafeState("invalid keybinding backup token")
+    with secure_absolute_directory(_keybinding_directory()) as config_fd, secure_absolute_directory(
+        _keybinding_state_directory(), create=False
+    ) as state_fd:
+        if state_fd is None:
+            raise UnsafeState("keybinding backup directory is missing")
+        assert config_fd is not None
+        with operation_lock(state_fd):
+            applied_digest, _digest_mode = read_regular(state_fd, f"{token}.applied", 64)
+            if not re.fullmatch(rb"[0-9a-f]{64}", applied_digest):
+                raise UnsafeState("keybinding applied-digest record is invalid")
+            current, _current_mode = read_regular(config_fd, "bindings.lua", MAX_BINDINGS_BYTES)
+            if _digest(current).encode() != applied_digest:
+                raise UnsafeState("bindings.lua changed after commit; refusing to overwrite the newer file")
+            if token.endswith(".bak"):
+                prior_digest, _prior_digest_mode = read_regular(state_fd, f"{token}.prior", 64)
+                if not re.fullmatch(rb"[0-9a-f]{64}", prior_digest):
+                    raise UnsafeState("keybinding prior-digest record is invalid")
+                data, mode = read_regular(state_fd, token, MAX_BINDINGS_BYTES)
+                if _digest(data).encode() != prior_digest:
+                    raise UnsafeState("keybinding backup changed after commit; refusing rollback")
+                atomic_write(config_fd, "bindings.lua", data, mode, expected=current)
+            else:
+                marker, _mode = read_regular(state_fd, token, 0)
+                if marker:
+                    raise UnsafeState("absent keybinding record is not empty")
+                remove_regular(config_fd, "bindings.lua", expected=current)
+
+
+def keybinding_log() -> None:
+    data = read_stdin(MAX_ERROR_BYTES)
+    with secure_absolute_directory(_keybinding_state_directory()) as state_fd:
+        assert state_fd is not None
+        with operation_lock(state_fd):
+            atomic_write(state_fd, "last-config-error.txt", data, 0o600)
+
+
+def _launcher_sources() -> dict[str, bytes]:
+    source_dir = str(Path(__file__).absolute().parent / "launcher")
+    sources: dict[str, bytes] = {}
+    with secure_absolute_directory(source_dir, create=False) as source_fd:
+        if source_fd is None:
+            raise UnsafeState("packaged launcher directory is missing")
+        for name in LAUNCHER_FILES:
+            data, _mode = read_regular(source_fd, name, MAX_LAUNCHER_BYTES)
+            if not _managed_launcher(data):
+                raise UnsafeState(f"packaged launcher {name} lacks the ownership marker")
+            sources[name] = data
+    return sources
+
+
+def _launcher_prior(dest_fd: int, *, require_managed: bool) -> dict[str, tuple[bytes, int] | None]:
+    prior: dict[str, tuple[bytes, int] | None] = {}
+    for name in LAUNCHER_FILES:
+        info = _entry_info(dest_fd, name)
+        if info is None:
+            prior[name] = None
+            continue
+        data, mode = read_regular(dest_fd, name, MAX_LAUNCHER_BYTES)
+        if require_managed and not _managed_launcher(data):
+            raise UnsafeState(f"{name} exists but is not owned by OLIGARCHY; nothing was changed")
+        prior[name] = (data, mode)
+    return prior
+
+
+def _restore_installed_launchers(
+    dest_fd: int,
+    prior: dict[str, tuple[bytes, int] | None],
+    sources: dict[str, bytes],
+    applied: list[str],
+) -> None:
+    for name in reversed(applied):
+        record = prior[name]
+        if record is None:
+            remove_regular(dest_fd, name, expected=sources[name])
+        else:
+            data, mode = record
+            atomic_write(dest_fd, name, data, mode, expected=sources[name])
+
+
+def _restore_removed_launchers(
+    dest_fd: int,
+    prior: dict[str, tuple[bytes, int] | None],
+    applied: list[str],
+) -> None:
+    for name in reversed(applied):
+        record = prior[name]
+        assert record is not None
+        data, mode = record
+        atomic_write(dest_fd, name, data, mode, expected=None)
+
+
+def launcher_install() -> None:
+    sources = _launcher_sources()
+    with secure_absolute_directory(_installer_state_directory()) as state_fd, secure_absolute_directory(
+        _launcher_directory()
+    ) as dest_fd:
+        assert state_fd is not None and dest_fd is not None
+        with operation_lock(state_fd):
+            prior = _launcher_prior(dest_fd, require_managed=True)
+            applied: list[str] = []
+            try:
+                for name, data in sources.items():
+                    record = prior[name]
+                    expected = None if record is None else record[0]
+                    atomic_write(dest_fd, name, data, 0o644, expected=expected)
+                    applied.append(name)
+            except Exception:
+                _restore_installed_launchers(dest_fd, prior, sources, applied)
+                raise
+
+
+def launcher_remove() -> bool:
+    with secure_absolute_directory(_launcher_directory(), create=False) as dest_fd:
+        if dest_fd is None:
+            return False
+        with secure_absolute_directory(_installer_state_directory()) as state_fd:
+            assert state_fd is not None
+            with operation_lock(state_fd):
+                prior = _launcher_prior(dest_fd, require_managed=True)
+                found = any(record is not None for record in prior.values())
+                applied: list[str] = []
+                try:
+                    for name, record in prior.items():
+                        if record is not None:
+                            remove_regular(dest_fd, name, expected=record[0])
+                            applied.append(name)
+                except Exception:
+                    _restore_removed_launchers(dest_fd, prior, applied)
+                    raise
+                return found
+
+
+def launcher_status() -> bool:
+    complete = True
+    with secure_absolute_directory(_launcher_directory(), create=False) as dest_fd:
+        for name in LAUNCHER_FILES:
+            installed = False
+            if dest_fd is not None and _entry_info(dest_fd, name) is not None:
+                data, _mode = read_regular(dest_fd, name, MAX_LAUNCHER_BYTES)
+                installed = _managed_launcher(data)
+            print(f"{'installed' if installed else 'missing'}: {name}")
+            complete = complete and installed
+    return complete
 
 
 def notify(title: str, body: str, timeout: int) -> None:
@@ -447,8 +828,30 @@ def main(argv: list[str]) -> int:
             branding_restore()
         elif command == "welcome" and len(args) == 1:
             welcome(args[0])
+        elif command == "keybinding-read" and not args:
+            if not keybinding_read():
+                return 3
+        elif command == "keybinding-commit" and len(args) == 2:
+            keybinding_commit(args[0], args[1])
+        elif command == "keybinding-restore" and len(args) == 1:
+            keybinding_restore(args[0])
+        elif command == "keybinding-log" and not args:
+            keybinding_log()
+        elif command == "launcher-install" and not args:
+            launcher_install()
+        elif command == "launcher-remove" and not args:
+            print("removed" if launcher_remove() else "missing")
+        elif command == "launcher-status" and not args:
+            if not launcher_status():
+                return 3
         else:
-            print("usage: oligarchy-state {default-status|default-enable|default-disable|branding-install|branding-restore|welcome}", file=sys.stderr)
+            print(
+                "usage: oligarchy-state "
+                "{default-status|default-enable|default-disable|branding-install|branding-restore|welcome|"
+                "keybinding-read|keybinding-commit|keybinding-restore|keybinding-log|"
+                "launcher-install|launcher-remove|launcher-status}",
+                file=sys.stderr,
+            )
             return 2
         return 0
     except (UnsafeState, OSError) as exc:

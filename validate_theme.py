@@ -123,6 +123,13 @@ def validate_plugin() -> dict[str, object]:
     for primitive in ("O_NOFOLLOW", "O_NONBLOCK", "S_ISREG", "O_EXCL", "os.fsync", "os.replace"):
         assert primitive in state_helper, f"state helper missing safety primitive: {primitive}"
     for command in (
+        "keybinding-read", "keybinding-commit", "keybinding-restore", "keybinding-log",
+        "launcher-install", "launcher-remove", "launcher-status",
+    ):
+        assert f'"{command}"' in state_helper, f"state helper missing installer safety command: {command}"
+    assert "bindings.lua changed after the safe snapshot" in state_helper
+    assert "MAX_BINDINGS_BYTES" in state_helper and "MAX_LAUNCHER_BYTES" in state_helper
+    for command in (
         "default-status", "default-enable", "default-disable",
         "branding-install", "branding-restore", "welcome",
     ):
@@ -192,11 +199,17 @@ def validate_installer() -> None:
     assert "configerrors" in keybinding and "prior bindings file was restored" in keybinding
     assert "live_bind_records" in keybinding and "live_managed_binding_present" in keybinding
     assert 'hyprctl eval "$BINDING_LINE"' in keybinding, "live repair fallback must reuse the exact persistent line"
+    for command in ("keybinding-read", "keybinding-commit", "keybinding-restore", "keybinding-log"):
+        assert command in keybinding, f"keybinding manager bypasses helper command: {command}"
+    for unsafe in ('cp -p --', ' >"$ERROR_LOG"', 'touch -- "$TARGET_BINDINGS_FILE"'):
+        assert unsafe not in keybinding, f"keybinding manager contains unsafe direct file operation: {unsafe}"
 
     launcher_manager = (ROOT / "launcher-entries.sh").read_text(encoding="utf-8")
     assert launcher_manager.startswith("#!/bin/bash\n"), "launcher manager must have a Bash shebang"
-    assert "X-Oligarchy-Managed=true" in launcher_manager
-    assert "is_managed" in launcher_manager and "nothing was changed" in launcher_manager
+    for command in ("launcher-install", "launcher-remove", "launcher-status"):
+        assert command in launcher_manager, f"launcher manager bypasses helper command: {command}"
+    for unsafe in ("install -m", "grep -Fqx", "rm -f --"):
+        assert unsafe not in launcher_manager, f"launcher manager contains unsafe direct file operation: {unsafe}"
     entries = {
         "oligarchy-tax-department.desktop": "omarchy-shell shell summon rookepoole.oligarchy-tax-department {}",
         "oligarchy-executive-exit.desktop": "omarchy-shell oligarchy-executive-exit open {}",

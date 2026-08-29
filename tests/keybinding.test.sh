@@ -201,4 +201,51 @@ after=$(sha256sum "$rollback/home/.config/hypr/bindings.lua")
 [[ $before == "$after" ]]
 grep -Fqx 'oligarchy test error' "$rollback/home/.local/state/oligarchy/keybinding/last-config-error.txt"
 
-echo "PASS - keybinding is installable, orphan-adopting, migratable, reversible, collision-safe, live-resolved, self-repairing, diagnostic, and config-error-rollback-safe"
+symlink_target=$(make_case symlink-target)
+printf '%s\n' 'external sentinel' >"$symlink_target/sentinel"
+ln -s "$symlink_target/sentinel" "$symlink_target/home/.config/hypr/bindings.lua"
+if timeout 2 env HOME="$symlink_target/home" PATH="$symlink_target/bin:$PATH" \
+  bash "$MANAGER" install >/dev/null 2>&1; then
+  echo "expected a symlinked bindings target to be refused" >&2
+  exit 1
+fi
+grep -Fqx 'external sentinel' "$symlink_target/sentinel"
+[[ -L $symlink_target/home/.config/hypr/bindings.lua ]]
+
+fifo_target=$(make_case fifo-target)
+rm -f -- "$fifo_target/home/.config/hypr/bindings.lua"
+mkfifo "$fifo_target/home/.config/hypr/bindings.lua"
+if timeout 2 env HOME="$fifo_target/home" PATH="$fifo_target/bin:$PATH" \
+  bash "$MANAGER" status >/dev/null 2>&1; then
+  echo "expected a FIFO bindings target to be refused" >&2
+  exit 1
+fi
+
+parent_link=$(make_case parent-link)
+rmdir -- "$parent_link/home/.config/hypr"
+mkdir -p "$parent_link/external"
+ln -s "$parent_link/external" "$parent_link/home/.config/hypr"
+if HOME="$parent_link/home" PATH="$parent_link/bin:$PATH" bash "$MANAGER" install >/dev/null 2>&1; then
+  echo "expected a symlinked Hyprland config parent to be refused" >&2
+  exit 1
+fi
+[[ -z $(find "$parent_link/external" -mindepth 1 -print -quit) ]]
+
+unsafe_log=$(make_case unsafe-log)
+add_live_hyprctl "$unsafe_log"
+printf '%s\n' '-- exact preimage' >"$unsafe_log/home/.config/hypr/bindings.lua"
+mkdir -p "$unsafe_log/home/.local/state/oligarchy/keybinding"
+printf '%s\n' 'diagnostic sentinel' >"$unsafe_log/log-sentinel"
+ln -s "$unsafe_log/log-sentinel" \
+  "$unsafe_log/home/.local/state/oligarchy/keybinding/last-config-error.txt"
+before=$(sha256sum "$unsafe_log/home/.config/hypr/bindings.lua")
+if run_live "$unsafe_log" config-error install >/dev/null 2>&1; then
+  echo "expected config-error rollback with an unsafe diagnostic path" >&2
+  exit 1
+fi
+after=$(sha256sum "$unsafe_log/home/.config/hypr/bindings.lua")
+[[ $before == "$after" ]]
+grep -Fqx 'diagnostic sentinel' "$unsafe_log/log-sentinel"
+[[ -L $unsafe_log/home/.local/state/oligarchy/keybinding/last-config-error.txt ]]
+
+echo "PASS - keybinding is installable, reversible, collision-safe, live-verified, and no-follow atomic across target, parent, backup, rollback, and diagnostic paths"
